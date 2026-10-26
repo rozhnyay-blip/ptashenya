@@ -597,8 +597,6 @@ export const ListAdminProductsResponse = zod.object({
   "firstSeenAt": zod.coerce.date(),
   "lastSeenAt": zod.coerce.date().nullable(),
   "profitPerUnit": zod.number().nullish().describe('Retail minus purchase price'),
-  "stockValue": zod.number().nullish().describe('Retail price times units in stock'),
-  "stockProfit": zod.number().nullish().describe('Profit if the whole stock is sold; null unless the supplier quantity is known exactly'),
   "seoTitle": zod.string().nullish()
 }))),
   "total": zod.number().int(),
@@ -624,17 +622,15 @@ export const GetAdminProductsSummaryQueryParams = zod.object({
 
 export const GetAdminProductsSummaryResponse = zod.object({
   "positions": zod.number().int().describe('Products matching the filter'),
-  "positionsWithStock": zod.number().int().describe('Of them sellable and in stock'),
-  "unitsInStock": zod.number().int().describe('Units of exactly-known positions'),
-  "costValue": zod.number().describe('Purchase cost of all units in stock'),
-  "retailValue": zod.number().describe('Revenue if every unit is sold at current prices'),
+  "positionsWithStock": zod.number().int().describe('Of them in stock today and sellable in the store'),
+  "costValue": zod.number().describe('Purchase cost of one unit of every in-stock product'),
+  "retailValue": zod.number().describe('Store price of one unit of every in-stock product'),
   "profit": zod.number(),
-  "exactPositions": zod.number().int().describe('Sellable positions whose quantity is known exactly — only these are counted in units and money'),
   "marginPercent": zod.number().describe('Profit as percent of revenue'),
   "markupPercent": zod.number().describe('Current store markup'),
   "whatIf": zod.union([zod.object({
   "markupPercent": zod.number(),
-  "retailValue": zod.number().describe('Revenue for exactly-known units at the hypothetical markup (rounding and manual prices applied)'),
+  "retailValue": zod.number().describe('One unit of every in-stock product at the hypothetical markup (rounding and manual prices applied)'),
   "profit": zod.number()
 }),zod.null()]).optional()
 })
@@ -663,18 +659,15 @@ export const BulkUpdateAdminProductsResponse = zod.object({
  */
 export const GetAdminInventoryResponse = zod.object({
   "positionsInStock": zod.number().int(),
-  "unitsInStock": zod.number().int().describe('Units of exactly-known positions'),
   "costValue": zod.number(),
   "retailValue": zod.number(),
   "profit": zod.number(),
-  "exactPositions": zod.number().int(),
   "marginPercent": zod.number(),
   "markupPercent": zod.number(),
   "categories": zod.array(zod.object({
   "categoryId": zod.number().int(),
   "name": zod.string(),
   "positions": zod.number().int(),
-  "units": zod.number().int(),
   "costValue": zod.number(),
   "retailValue": zod.number(),
   "profit": zod.number()
@@ -703,8 +696,6 @@ export const GetAdminInventoryResponse = zod.object({
   "firstSeenAt": zod.coerce.date(),
   "lastSeenAt": zod.coerce.date().nullable(),
   "profitPerUnit": zod.number().nullish().describe('Retail minus purchase price'),
-  "stockValue": zod.number().nullish().describe('Retail price times units in stock'),
-  "stockProfit": zod.number().nullish().describe('Profit if the whole stock is sold; null unless the supplier quantity is known exactly'),
   "seoTitle": zod.string().nullish()
 })))
 })
@@ -856,8 +847,6 @@ export const UpdateAdminProductResponse = zod.object({
   "firstSeenAt": zod.coerce.date(),
   "lastSeenAt": zod.coerce.date().nullable(),
   "profitPerUnit": zod.number().nullish().describe('Retail minus purchase price'),
-  "stockValue": zod.number().nullish().describe('Retail price times units in stock'),
-  "stockProfit": zod.number().nullish().describe('Profit if the whole stock is sold; null unless the supplier quantity is known exactly'),
   "seoTitle": zod.string().nullish()
 }))
 

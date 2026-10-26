@@ -10,7 +10,6 @@ export interface InventoryCategory {
   categoryId: number;
   name: string;
   positions: number;
-  units: number;
   costValue: number;
   retailValue: number;
   profit: number;

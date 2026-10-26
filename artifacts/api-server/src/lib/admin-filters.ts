@@ -37,8 +37,5 @@ export const sellableSql = sql`(products.in_stock and products.is_active
   and coalesce(products.price_override, products.supplier_price, 0) > 0
   and products.source_cat_id in (select supplier_cat_id from sync_sources where enabled))`;
 
-/**
- * Units counted in stock money: only positions whose supplier quantity is known exactly.
- * Ranges ("10...50", "понад 100") are left out on purpose — the owner wants exact figures only.
- */
-export const exactQtySql = sql`(case when ${sellableSql} and products.stock_qty_max = products.stock_qty then coalesce(products.stock_qty, 0) else 0 end)`;
+/** Stock money counts one unit of every product that is in stock today and sellable in the store. */
+export const oneUnitSql = sql`(case when ${sellableSql} and coalesce(products.stock_qty, 1) > 0 then 1 else 0 end)`;

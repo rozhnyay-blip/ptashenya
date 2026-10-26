@@ -391,13 +391,12 @@ router.get("/admin/products", async (req, res) => {
   const price = retailPriceSql(settingsForSort);
   const profitExpr = sql`(${price} - coalesce(products.supplier_price, ${price}))`;
   const qtyExpr = sql`(case when products.in_stock then coalesce(products.stock_qty, 0) else 0 end)`;
-  const exactQtyExpr = sql`(case when products.in_stock and products.stock_qty_max = products.stock_qty then products.stock_qty else 0 end)`;
   const orderBy: SQL[] = (() => {
     switch (q.sort) {
       case "profit_desc":
         return [sql`${profitExpr} desc`];
       case "stock_value_desc":
-        return [sql`${profitExpr} * ${exactQtyExpr} desc nulls last`];
+        return [sql`${profitExpr} * ${qtyExpr} desc nulls last`];
       case "price_asc":
         return [sql`${price} asc`];
       case "price_desc":

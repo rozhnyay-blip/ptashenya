@@ -890,8 +890,6 @@ components:
             firstSeenAt: { type: string, format: date-time }
             lastSeenAt: { type: ["string", "null"], format: date-time }
             profitPerUnit: { type: ["number", "null"], description: "Retail minus purchase price" }
-            stockValue: { type: ["number", "null"], description: "Retail price times units in stock" }
-            stockProfit: { type: ["number", "null"], description: "Profit if the whole stock is sold; null unless the supplier quantity is known exactly" }
             seoTitle: { type: ["string", "null"] }
 
     AdminProductPage:
@@ -999,15 +997,13 @@ components:
 
     ProductsSummary:
       type: object
-      required: [positions, positionsWithStock, unitsInStock, costValue, retailValue, profit, exactPositions, marginPercent, markupPercent]
+      required: [positions, positionsWithStock, costValue, retailValue, profit, marginPercent, markupPercent]
       properties:
         positions: { type: integer, description: "Products matching the filter" }
-        positionsWithStock: { type: integer, description: "Of them sellable and in stock" }
-        unitsInStock: { type: integer, description: "Units of exactly-known positions" }
-        costValue: { type: number, description: "Purchase cost of all units in stock" }
-        retailValue: { type: number, description: "Revenue if every unit is sold at current prices" }
+        positionsWithStock: { type: integer, description: "Of them in stock today and sellable in the store" }
+        costValue: { type: number, description: "Purchase cost of one unit of every in-stock product" }
+        retailValue: { type: number, description: "Store price of one unit of every in-stock product" }
         profit: { type: number }
-        exactPositions: { type: integer, description: "Sellable positions whose quantity is known exactly — only these are counted in units and money" }
         marginPercent: { type: number, description: "Profit as percent of revenue" }
         markupPercent: { type: number, description: "Current store markup" }
         whatIf:
@@ -1020,7 +1016,7 @@ components:
       required: [markupPercent, retailValue, profit]
       properties:
         markupPercent: { type: number }
-        retailValue: { type: number, description: "Revenue for exactly-known units at the hypothetical markup (rounding and manual prices applied)" }
+        retailValue: { type: number, description: "One unit of every in-stock product at the hypothetical markup (rounding and manual prices applied)" }
         profit: { type: number }
 
     BulkProductAction:
@@ -1045,26 +1041,23 @@ components:
 
     InventoryCategory:
       type: object
-      required: [categoryId, name, positions, units, costValue, retailValue, profit]
+      required: [categoryId, name, positions, costValue, retailValue, profit]
       properties:
         categoryId: { type: integer }
         name: { type: string }
         positions: { type: integer }
-        units: { type: integer }
         costValue: { type: number }
         retailValue: { type: number }
         profit: { type: number }
 
     InventoryReport:
       type: object
-      required: [positionsInStock, unitsInStock, costValue, retailValue, profit, exactPositions, marginPercent, markupPercent, categories, lowStockBestsellers]
+      required: [positionsInStock, costValue, retailValue, profit, marginPercent, markupPercent, categories, lowStockBestsellers]
       properties:
         positionsInStock: { type: integer }
-        unitsInStock: { type: integer, description: "Units of exactly-known positions" }
         costValue: { type: number }
         retailValue: { type: number }
         profit: { type: number }
-        exactPositions: { type: integer }
         marginPercent: { type: number }
         markupPercent: { type: number }
         categories:

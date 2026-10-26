@@ -1,11 +1,12 @@
 import { Link } from "wouter";
-import { Flame, LineChart, Warehouse } from "lucide-react";
+import { Download, Flame, LineChart, ListFilter, Warehouse } from "lucide-react";
 import { useGetAdminInventory, getGetAdminInventoryQueryKey, useListAdminPriceChanges, getListAdminPriceChangesQueryKey } from "@workspace/api-client-react";
 import { Panel } from "@/components/admin/admin-layout";
 import { ProductImage } from "@/components/store/product-image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChangeBadge } from "@/pages/admin/prices";
-import { num, pct, relTime, uah, uahCompact } from "@/lib/format";
+import { StockAsOf } from "@/components/admin/stock-as-of";
+import { num, pct, relTime, uah } from "@/lib/format";
 
 export function InventoryPanels() {
   const { data: inv, isLoading, isError, refetch } = useGetAdminInventory({ query: { queryKey: getGetAdminInventoryQueryKey() } });
@@ -19,16 +20,17 @@ export function InventoryPanels() {
 
   return (
     <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_360px]">
-      <Panel title={<span className="flex items-center gap-2"><Warehouse className="h-4 w-4 text-primary" />Вартість складу постачальника</span>} action={<Link href="/admin/products?stock=in_stock&sort=profit_desc" className="text-xs font-semibold text-primary" data-testid="link-inventory-products">До товарів</Link>}>
+      <Panel title={<span className="flex items-center gap-2"><Warehouse className="h-4 w-4 text-primary" />Наявність сьогодні — по 1 шт. кожного товару</span>}>
+        <div className="border-b border-border p-3"><StockAsOf /></div>
         <div className="grid grid-cols-2 gap-px border-b border-border bg-border sm:grid-cols-4">
           {[
-            ["Закупка", inv.costValue, `${num(inv.exactPositions)} поз. · ${num(inv.unitsInStock)} шт`],
+            ["Закупка", inv.costValue, `${num(inv.positionsInStock)} товарів × 1 шт`],
             ["Виручка", inv.retailValue, `націнка ${pct(inv.markupPercent, 0)}`],
             ["Прибуток", inv.profit, `маржа ${pct(inv.marginPercent)}`],
           ].map(([l, v, sub], i) => (
             <div key={l as string} className={i === 2 ? "col-span-2 bg-[hsl(160_45%_93%)] p-4 text-[hsl(165_55%_20%)] sm:col-span-2" : "bg-card p-4"}>
               <div className="text-[10px] font-semibold uppercase tracking-wider opacity-70">{l}</div>
-              <div className="mt-1 font-mono text-xl font-semibold tabular" title={uah(v as number)} data-testid={`text-inventory-${i}`}>{uahCompact(v as number)}</div>
+              <div className="mt-1 font-mono text-xl font-semibold tabular" title={uah(v as number)} data-testid={`text-inventory-${i}`}>{uah(Math.round(v as number))}</div>
               <div className="text-[11px] opacity-70">{sub}</div>
             </div>
           ))}
@@ -36,19 +38,23 @@ export function InventoryPanels() {
         {cats.length === 0 ? <p className="p-6 text-center text-sm text-muted-foreground">Товарів у наявності немає</p> : (
           <div className="max-h-[360px] overflow-y-auto">
             <table className="w-full text-xs">
-              <thead className="sticky top-0 bg-card"><tr className="text-left text-[10px] uppercase tracking-wider text-muted-foreground"><th className="px-4 py-2">Категорія</th><th className="hidden px-2 text-right sm:table-cell">Шт</th><th className="px-2 text-right">Виручка</th><th className="px-4 text-right">Прибуток</th></tr></thead>
+              <thead className="sticky top-0 bg-card"><tr className="text-left text-[10px] uppercase tracking-wider text-muted-foreground"><th className="px-4 py-2">Категорія</th><th className="hidden px-2 text-right sm:table-cell">Товарів</th><th className="px-2 text-right">Виручка</th><th className="px-4 text-right">Прибуток</th></tr></thead>
               <tbody>{cats.map((c) => (
                 <tr key={c.categoryId} className="border-t border-border/70 hover:bg-muted/40">
                   <td className="px-4 py-1.5"><Link href={`/admin/products?cat=${c.categoryId}&stock=in_stock`} className="block" data-testid={`link-inv-cat-${c.categoryId}`}><div className="truncate font-medium">{c.name}</div><div className="mt-1 h-1 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-[hsl(285_35%_30%)]" style={{ width: `${(c.retailValue / maxR) * 100}%` }} /></div></Link></td>
-                  <td className="hidden px-2 text-right font-mono tabular text-muted-foreground sm:table-cell">{num(c.units)}</td>
-                  <td className="px-2 text-right font-mono tabular" title={uah(c.retailValue)}>{uahCompact(c.retailValue)}</td>
-                  <td className="px-4 text-right font-mono font-semibold tabular text-[hsl(165_55%_28%)]" title={uah(c.profit)}>{uahCompact(c.profit)}</td>
+                  <td className="hidden px-2 text-right font-mono tabular text-muted-foreground sm:table-cell">{num(c.positions)}</td>
+                  <td className="px-2 text-right font-mono tabular" title={uah(c.retailValue)}>{uah(Math.round(c.retailValue))}</td>
+                  <td className="px-4 text-right font-mono font-semibold tabular text-[hsl(165_55%_28%)]" title={uah(c.profit)}>{uah(Math.round(c.profit))}</td>
                 </tr>
               ))}</tbody>
             </table>
           </div>
         )}
-        <p className="border-t border-border px-4 py-2 text-[10px] text-muted-foreground">Якщо продати весь доступний залишок за цінами магазину. Рахуються лише позиції з точною кількістю{inv.positionsInStock > inv.exactPositions && <> — не враховано {num(inv.positionsInStock - inv.exactPositions)} поз., де постачальник показує лише діапазон</>}.</p>
+        <p className="border-t border-border px-4 py-2 text-[10px] text-muted-foreground">Кожен товар у наявності рахується 1 раз (1 шт.) за цінами магазину. Натисніть на категорію, щоб побачити її товари.</p>
+        <div className="flex flex-wrap gap-2 border-t border-border px-4 py-3">
+          <Link href="/admin/products?stock=in_stock" className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-foreground px-3 text-xs font-bold text-background transition hover:bg-foreground/90" data-testid="link-inventory-products"><ListFilter className="h-3.5 w-3.5" />Усі товари в наявності</Link>
+          <a href={`${import.meta.env.BASE_URL}api/admin/export/products.csv?stock=in_stock`} download className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-xs font-semibold transition hover:bg-muted" data-testid="link-inventory-export"><Download className="h-3.5 w-3.5" />Завантажити список (Excel)</a>
+        </div>
       </Panel>
       <div className="space-y-4">
         <Panel title={<span className="flex items-center gap-2"><Flame className="h-4 w-4 text-primary" />Хіти, що закінчуються</span>}>

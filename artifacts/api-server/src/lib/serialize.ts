@@ -41,13 +41,9 @@ export function toAdminProduct(
   const base = toProduct(p, s, categoryName);
   const round2 = (n: number) => Math.round(n * 100) / 100;
   const profitPerUnit = p.supplierPrice !== null && base.price > 0 ? round2(base.price - p.supplierPrice) : null;
-  // Money is shown only for exactly-known quantities; supplier ranges stay unpriced.
-  const qty = !p.inStock ? 0 : p.stockQty !== null && p.stockQtyMax === p.stockQty ? p.stockQty : null;
   return {
     ...base,
     profitPerUnit,
-    stockValue: qty !== null && base.price > 0 ? round2(base.price * qty) : null,
-    stockProfit: qty !== null && profitPerUnit !== null ? round2(profitPerUnit * qty) : null,
     seoTitle: p.seoTitle,
     supplierPrice: p.supplierPrice,
     priceOverride: p.priceOverride,

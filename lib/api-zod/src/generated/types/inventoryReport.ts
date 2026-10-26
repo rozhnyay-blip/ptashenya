@@ -10,12 +10,9 @@ import type { InventoryCategory } from './inventoryCategory';
 
 export interface InventoryReport {
   positionsInStock: number;
-  /** Units of exactly-known positions */
-  unitsInStock: number;
   costValue: number;
   retailValue: number;
   profit: number;
-  exactPositions: number;
   marginPercent: number;
   markupPercent: number;
   categories: InventoryCategory[];

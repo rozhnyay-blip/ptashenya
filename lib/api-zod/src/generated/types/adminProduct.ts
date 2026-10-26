@@ -24,16 +24,6 @@ export type AdminProduct = Product & ({
      * @nullable
      */
   profitPerUnit?: number | null;
-  /**
-     * Retail price times units in stock
-     * @nullable
-     */
-  stockValue?: number | null;
-  /**
-     * Profit if the whole stock is sold; null unless the supplier quantity is known exactly
-     * @nullable
-     */
-  stockProfit?: number | null;
   /** @nullable */
   seoTitle?: string | null;
 });

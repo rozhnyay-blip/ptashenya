@@ -8,7 +8,7 @@
 
 export interface WhatIfMoney {
   markupPercent: number;
-  /** Revenue for exactly-known units at the hypothetical markup (rounding and manual prices applied) */
+  /** One unit of every in-stock product at the hypothetical markup (rounding and manual prices applied) */
   retailValue: number;
   profit: number;
 }

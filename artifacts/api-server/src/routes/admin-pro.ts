@@ -19,7 +19,7 @@ import {
 } from "@workspace/api-zod";
 import { requireAdmin } from "../middlewares/auth";
 import { getSettings, retailPrice, retailPriceSql } from "../lib/settings";
-import { adminProductFilter, exactQtySql, sellableSql } from "../lib/admin-filters";
+import { adminProductFilter, oneUnitSql } from "../lib/admin-filters";
 import { toAdminProduct } from "../lib/serialize";
 import { SEO_PLACEHOLDERS, isSeoRunning, runSeo } from "../lib/seo";
 
@@ -28,18 +28,16 @@ router.use("/admin", requireAdmin);
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-/** Stock money for products a customer can buy, counted only where the supplier quantity is exact. */
+/** Stock money as of the latest sync: one unit of every product a customer can buy today. */
 async function moneyTotals(where: SQL | undefined) {
   const s = await getSettings();
   const price = retailPriceSql(s);
   const [row] = await db
     .select({
       positions: sql<number>`count(*)::int`,
-      positionsWithStock: sql<number>`(count(*) filter (where ${sellableSql} and coalesce(products.stock_qty, 0) > 0))::int`,
-      exactPositions: sql<number>`(count(*) filter (where ${exactQtySql} > 0))::int`,
-      units: sql<number>`coalesce(sum(${exactQtySql}), 0)::int`,
-      cost: sql<number>`coalesce(sum(${exactQtySql} * coalesce(products.supplier_price, 0)), 0)::float8`,
-      retail: sql<number>`coalesce(sum(${exactQtySql} * ${price}), 0)::float8`,
+      positionsWithStock: sql<number>`coalesce(sum(${oneUnitSql}), 0)::int`,
+      cost: sql<number>`coalesce(sum(${oneUnitSql} * coalesce(products.supplier_price, 0)), 0)::float8`,
+      retail: sql<number>`coalesce(sum(${oneUnitSql} * ${price}), 0)::float8`,
     })
     .from(productsTable)
     .where(where);
@@ -49,8 +47,6 @@ async function moneyTotals(where: SQL | undefined) {
   return {
     positions: row?.positions ?? 0,
     positionsWithStock: row?.positionsWithStock ?? 0,
-    exactPositions: row?.exactPositions ?? 0,
-    unitsInStock: row?.units ?? 0,
     costValue: cost,
     retailValue: retail,
     profit,
@@ -72,7 +68,7 @@ router.get("/admin/products/summary", async (req, res) => {
     const s = await getSettings();
     const price = retailPriceSql({ markupPercent: parsed.data.whatIfMarkup, roundPrices: s.roundPrices });
     const [row] = await db
-      .select({ retail: sql<number>`coalesce(sum(${exactQtySql} * ${price}), 0)::float8` })
+      .select({ retail: sql<number>`coalesce(sum(${oneUnitSql} * ${price}), 0)::float8` })
       .from(productsTable)
       .where(where);
     const retail = round2(row?.retail ?? 0);
@@ -133,15 +129,13 @@ router.get("/admin/inventory", async (_req, res) => {
     db.execute<{
       category_id: number;
       positions: number;
-      units: number;
       cost: number;
       retail: number;
     }>(sql`
       select coalesce(c.parent_id, c.id) as category_id,
-        (count(*) filter (where ${exactQtySql} > 0))::int as positions,
-        coalesce(sum(${exactQtySql}), 0)::int as units,
-        coalesce(sum(${exactQtySql} * coalesce(products.supplier_price, 0)), 0)::float8 as cost,
-        coalesce(sum(${exactQtySql} * ${price}), 0)::float8 as retail
+        (count(*) filter (where ${oneUnitSql} > 0))::int as positions,
+        coalesce(sum(${oneUnitSql} * coalesce(products.supplier_price, 0)), 0)::float8 as cost,
+        coalesce(sum(${oneUnitSql} * ${price}), 0)::float8 as retail
       from products join categories c on c.id = products.category_id
       group by 1 order by retail desc`),
     db
@@ -161,20 +155,17 @@ router.get("/admin/inventory", async (_req, res) => {
   const catMap = new Map(cats.map((c) => [c.id, c.name]));
   res.json({
     positionsInStock: totals.positionsWithStock,
-    unitsInStock: totals.unitsInStock,
     costValue: totals.costValue,
     retailValue: totals.retailValue,
     profit: totals.profit,
-    exactPositions: totals.exactPositions,
     marginPercent: totals.marginPercent,
     markupPercent: totals.markupPercent,
     categories: byCat.rows
-      .filter((r) => r.units > 0)
+      .filter((r) => r.positions > 0)
       .map((r) => ({
         categoryId: r.category_id,
         name: catMap.get(r.category_id) ?? "Без категорії",
         positions: r.positions,
-        units: r.units,
         costValue: round2(r.cost),
         retailValue: round2(r.retail),
         profit: round2(r.retail - r.cost),
@@ -362,7 +353,7 @@ router.get("/admin/export/products.csv", async (req, res) => {
   sendCsv(
     res,
     `tovary-${new Date().toISOString().slice(0, 10)}.csv`,
-    ["Код", "Артикул", "Назва", "Категорія", "Закупка", "Ціна продажу", "Прибуток з шт", "Залишок", "Прибуток з залишку", "В наявності", "Показується", "Продано", "Посилання постачальника"],
+    ["Код", "Артикул", "Назва", "Категорія", "Закупка", "Ціна продажу", "Прибуток з шт", "Залишок", "В наявності", "Показується", "Продано", "Посилання постачальника"],
     rows.map((p) => {
       const a = toAdminProduct(p, s, p.categoryId ? (catMap.get(p.categoryId) ?? null) : null);
       return [
@@ -378,7 +369,6 @@ router.get("/admin/export/products.csv", async (req, res) => {
           : p.stockQtyMax === p.stockQty ? p.stockQty
           : p.stockQtyMax === null ? `понад ${p.stockQty} (точно невідомо)`
           : `${p.stockQty}–${p.stockQtyMax} (точно невідомо)`,
-        a.stockProfit,
         p.inStock ? "так" : "ні",
         p.isActive ? "так" : "ні",
         p.salesCount,

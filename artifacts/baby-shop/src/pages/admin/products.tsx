@@ -11,13 +11,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { MoneySummary } from "@/components/admin/money-summary";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { apiError, num, uah, uahCompact } from "@/lib/format";
+import { apiError, num, uah } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const STOCKS: { v: ListAdminProductsStock; l: string }[] = [{ v: "all", l: "Усі" }, { v: "in_stock", l: "В наявності" }, { v: "out_of_stock", l: "Закінчились" }, { v: "hidden", l: "Приховані" }];
 
 const SORTS: { v: ListAdminProductsSort; l: string }[] = [
-  { v: "newest", l: "Спочатку нові" }, { v: "profit_desc", l: "Найбільший прибуток з залишку" }, { v: "stock_value_desc", l: "Найдорожчий залишок" },
+  { v: "newest", l: "Спочатку нові" }, { v: "profit_desc", l: "Найбільший прибуток з 1 шт" },
   { v: "price_asc", l: "Ціна: дешевші" }, { v: "price_desc", l: "Ціна: дорожчі" }, { v: "stock_desc", l: "Найбільший залишок" }, { v: "sales_desc", l: "Найбільше продажів" },
 ];
 const exportBase = `${import.meta.env.BASE_URL}api/admin/export/products.csv`;
@@ -138,7 +138,7 @@ export default function ProductsPage() {
           ) : (
             <div className={cn("overflow-x-auto transition-opacity", isFetching && "opacity-60")}>
               <table className="w-full min-w-[1180px] text-sm">
-                <thead><tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground"><th className="w-8 pl-4"><Checkbox checked={allOn} onCheckedChange={(v) => setSel((o) => { const n = new Set(o); pageIds.forEach((id) => (v ? n.add(id) : n.delete(id))); return n; })} data-testid="checkbox-select-all" /></th><th className="px-3 py-2">Товар</th><th className="px-2">Категорія</th><th className="px-2 text-right">Залишок</th><th className="px-2 text-right">Закупка</th><th className="px-2 text-right">Продаж</th><th className="px-2 text-right">Прибуток з 1 шт</th><th className="px-2 text-right">З усього залишку</th><th className="px-2 text-right">Продано</th><th className="px-2 text-center">Показ</th><th className="px-4 text-center">Топ</th></tr></thead>
+                <thead><tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground"><th className="w-8 pl-4"><Checkbox checked={allOn} onCheckedChange={(v) => setSel((o) => { const n = new Set(o); pageIds.forEach((id) => (v ? n.add(id) : n.delete(id))); return n; })} data-testid="checkbox-select-all" /></th><th className="px-3 py-2">Товар</th><th className="px-2">Категорія</th><th className="px-2 text-right">Залишок</th><th className="px-2 text-right">Закупка</th><th className="px-2 text-right">Продаж</th><th className="px-2 text-right">Прибуток з 1 шт</th><th className="px-2 text-right">Продано</th><th className="px-2 text-center">Показ</th><th className="px-4 text-center">Топ</th></tr></thead>
                 <tbody>{data.items.map((p) => {
                   const margin = p.profitPerUnit ?? (p.supplierPrice ? p.price - p.supplierPrice : null);
                   return (
@@ -150,7 +150,6 @@ export default function ProductsPage() {
                       <td className="px-2 text-right font-mono text-xs tabular text-muted-foreground">{uah(p.supplierPrice)}</td>
                       <td className="px-2"><PriceCell p={p} onSave={(v) => patch(p, { priceOverride: v }, v === null ? "Повернуто автоматичну ціну" : "Ціну оновлено")} /></td>
                       <td className={cn("px-2 text-right font-mono text-xs tabular", margin !== null && margin < 0 ? "text-destructive" : "text-[hsl(165_55%_30%)]")}>{margin !== null ? uah(margin) : "—"}</td>
-                      <td className="px-2 text-right font-mono text-xs font-semibold tabular text-[hsl(165_55%_26%)]" title={p.stockProfit != null ? uah(p.stockProfit) : p.inStock ? "Постачальник не показує точну кількість" : undefined}>{p.stockProfit != null ? uahCompact(p.stockProfit) : "—"}</td>
                       <td className="px-2 text-right font-mono text-xs tabular">{p.salesCount}</td>
                       <td className="px-2 text-center"><Switch checked={p.isActive} onCheckedChange={(v) => patch(p, { isActive: v }, v ? "Товар показано" : "Товар приховано")} data-testid={`switch-active-${p.id}`} /></td>
                       <td className="px-4 text-center"><button type="button" onClick={() => patch(p, { isFeatured: !p.isFeatured }, p.isFeatured ? "Прибрано з обраного" : "Додано в обране на головній")} data-testid={`button-featured-${p.id}`} className="rounded-md p-1 hover:bg-muted"><Star className={cn("h-4 w-4", p.isFeatured ? "fill-secondary text-[hsl(40_90%_45%)]" : "text-muted-foreground")} /></button></td>

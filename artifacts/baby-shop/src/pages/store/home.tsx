@@ -5,7 +5,7 @@ import { useGetStorefrontHighlights, useListCategories, type Product } from "@wo
 import { ProductCard, ProductCardSkeleton } from "@/components/store/product-card";
 import { StateBlock } from "@/components/store/store-layout";
 import { num, relTime } from "@/lib/format";
-import { useSeo } from "@/lib/seo";
+import { siteJsonLd, useSeo } from "@/lib/seo";
 
 const TILE_COLORS = ["bg-secondary", "bg-accent", "bg-[hsl(160_45%_88%)]", "bg-[hsl(14_90%_90%)]", "bg-[hsl(200_60%_90%)]", "bg-muted"];
 
@@ -31,7 +31,7 @@ function Shelf({ title, kicker, items, href, loading }: { title: string; kicker:
 export default function HomePage() {
   const { data, isLoading, isError, refetch } = useGetStorefrontHighlights();
   const { data: cats } = useListCategories();
-  useSeo({ path: "/" });
+  useSeo({ path: "/", jsonLd: siteJsonLd() });
   const top = (data?.topCategories?.length ? data.topCategories : (cats ?? []).filter((c) => c.parentId === null)).slice(0, 8);
   const empty = !isLoading && data && data.stats.totalProducts === 0;
   return (

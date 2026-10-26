@@ -43,6 +43,27 @@ function setLink(rel: string, href: string | null) {
 }
 
 /** Sets page title, description, social tags, canonical URL and structured data for the current route. */
+/** Organization + WebSite markup: gives Google the shop logo and the site search box. */
+export function siteJsonLd(): Record<string, unknown> {
+  const root = `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, "")}`;
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "Organization", name: "Пташеня", url: `${root}/`, logo: `${root}/icon-512.png` },
+      {
+        "@type": "WebSite",
+        name: "Пташеня",
+        url: `${root}/`,
+        potentialAction: {
+          "@type": "SearchAction",
+          target: `${root}/catalog?search={search_term_string}`,
+          "query-input": "required name=search_term_string",
+        },
+      },
+    ],
+  };
+}
+
 export function useSeo({ title, description, image, path, jsonLd }: SeoInput) {
   const ld = jsonLd ? JSON.stringify(jsonLd) : null;
   useEffect(() => {
@@ -52,11 +73,12 @@ export function useSeo({ title, description, image, path, jsonLd }: SeoInput) {
     setMeta("name", "description", d);
     setMeta("property", "og:title", t);
     setMeta("property", "og:description", d);
-    setMeta("property", "og:image", image ?? null);
+    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+    const img = image || `${window.location.origin}${base}/og-image.jpg`;
+    setMeta("property", "og:image", img);
     setMeta("name", "twitter:title", t);
     setMeta("name", "twitter:description", d);
-    setMeta("name", "twitter:image", image ?? null);
-    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+    setMeta("name", "twitter:image", img);
     const url = path !== undefined ? `${window.location.origin}${base}${path}` : null;
     setMeta("property", "og:url", url);
     setLink("canonical", url);

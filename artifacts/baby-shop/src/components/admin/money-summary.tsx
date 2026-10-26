@@ -72,7 +72,7 @@ export function MoneySummary({ params }: { params: GetAdminProductsSummaryParams
       <section className="rounded-2xl border border-card-border bg-card p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-0">
-            <h2 className="text-sm font-bold">{all ? "Товари в наявності — усі штуки на складі" : "Товари в наявності — по 1 шт. кожного"}</h2>
+            <h2 className="text-sm font-bold">{all ? "В наявності, відправка до 3 днів — усі штуки" : "В наявності, відправка до 3 днів — по 1 шт. кожного"}</h2>
             <span className="font-mono text-[11px] text-muted-foreground tabular" data-testid="text-summary-positions">
               {all ? `${num(s.allUnits.units)} шт · ${num(s.positionsWithStock)} товарів` : `${num(s.positionsWithStock)} товарів × 1 шт`}
             </span>
@@ -87,8 +87,8 @@ export function MoneySummary({ params }: { params: GetAdminProductsSummaryParams
         </div>
         <p className="mt-3 flex gap-1.5 text-[11px] leading-snug text-muted-foreground"><Info className="mt-px h-3 w-3 shrink-0" />
           <span>{all
-            ? <>Рахуються всі штуки, які сьогодні є на складі постачальника. {s.allUnits.approxPositions > 0 && <>Для {num(s.allUnits.approxPositions)} товарів постачальник показує лише «від–до» (наприклад, 10…50 або понад 100) — беремо мінімум, тож насправді може бути трохи більше. </>}Приховані товари й товари без ціни не рахуються.</>
-            : <>Кожен товар, який сьогодні є на складі постачальника і продається у вашому магазині, рахується рівно 1 раз (1 шт.), незалежно від того, скільки штук на складі. Приховані товари й товари без ціни не рахуються.</>}</span></p>
+            ? <>Рахуються всі штуки, які сьогодні є на власному складі постачальника (відправка до 3 днів). {s.allUnits.approxPositions > 0 && <>Для {num(s.allUnits.approxPositions)} товарів постачальник показує лише «від–до» (наприклад, 10…50 або понад 100) — беремо мінімум, тож насправді може бути трохи більше. </>}Товари «під замовлення» (везуть до 7 днів), приховані й без ціни не рахуються.</>
+            : <>Кожен товар, який сьогодні є на власному складі постачальника (відправка до 3 днів) і продається у вашому магазині, рахується рівно 1 раз (1 шт.), незалежно від того, скільки штук на складі. Товари «під замовлення» (везуть до 7 днів), приховані й без ціни не рахуються.</>}</span></p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Link href={listHref} className={btn} data-testid="button-summary-show-list"><ListFilter className="h-3.5 w-3.5" />Показати ці товари</Link>
           <a href={exportHref} download className={btn} data-testid="button-summary-export"><Download className="h-3.5 w-3.5" />Завантажити список (Excel)</a>

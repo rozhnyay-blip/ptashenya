@@ -64,7 +64,7 @@ export default function DashboardPage() {
         <Kpi label="Прибуток 30 днів" value={uah(d.profit30d)} sub={d.revenue30d ? `маржа ${((d.profit30d / d.revenue30d) * 100).toFixed(1)}%` : undefined} />
         <Kpi label="Замовлень сьогодні" value={num(d.ordersToday)} sub={uah(d.revenueToday)} />
         <Kpi label="Середній чек" value={uah(d.avgOrderValue)} sub={`${num(d.orders30d)} за 30 дн`} />
-        <Kpi label="Товарів у наявності" value={num(d.productsInStock)} sub={`з ${num(d.productsTotal)}`} />
+        <Kpi label="У наявності (до 3 днів)" value={num(d.productsInStock)} sub={`ще ${num(d.productsOnOrder)} під замовлення`} />
         <Kpi label="Закінчились" value={num(d.productsOutOfStock)} sub={`приховано ${num(d.productsHidden)}`} />
         <Kpi label="Нових сьогодні" value={num(d.productsNewToday)} sub="товарів зі складу" />
         <Kpi label="Покупців" value={num(d.customersTotal)} sub={`всього ${num(d.ordersTotal)} замовл. · ${uah(d.revenueTotal)}`} />

@@ -24,6 +24,7 @@ export function toProduct(
     inStock: p.inStock,
     stockQty: p.stockQty,
     stockQtyMax: p.stockQtyMax,
+    deliveryDays: p.deliveryDays,
     isNew: p.isNew,
     isFeatured: p.isFeatured,
     imageUrl: p.imageUrl,

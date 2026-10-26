@@ -45,6 +45,8 @@ export interface ListedProduct {
   stockQtyMax: number | null;
   article: string | null;
   isNew: boolean;
+  /** "Під замовлення" items ship from a partner warehouse in up to N days; null = own warehouse. */
+  deliveryDays: number | null;
 }
 
 export interface ListingPage {
@@ -231,6 +233,7 @@ export function parseListing(html: string): ListingPage {
     const stockEl = el.querySelector(".product-stock .stock");
     const stock = stockEl ? parseStock(stockEl.innerHTML) : { min: null, max: null };
     const articleMatch = descText.match(/Артикул:\s*([^\n\r]+)/);
+    const deliveryDays = parseDeliveryDays(el.innerHTML);
 
     products.push({
       sku: skuMatch[1]!,
@@ -245,6 +248,7 @@ export function parseListing(html: string): ListingPage {
       stockQtyMax: stock.max,
       article: articleMatch ? clean(articleMatch[1]) || null : null,
       isNew: !!el.querySelector(".corner.color_newitem"),
+      deliveryDays,
     });
   }
   let maxOffset = 0;
@@ -252,6 +256,17 @@ export function parseListing(html: string): ListingPage {
     maxOffset = Math.max(maxOffset, Number(m[1]));
   }
   return { products, maxOffset };
+}
+
+/**
+ * On-order items carry a filled hidden `supplierStock<ID>` input and a "Термін доставки до N днів" note;
+ * items on the supplier's own warehouse have an empty input and no term.
+ */
+export function parseDeliveryDays(cardHtml: string): number | null {
+  const term = cardHtml.match(/Термін доставки до\s*(\d+)\s*дн/);
+  if (term) return Number(term[1]);
+  const supplierStock = cardHtml.match(/id="supplierStock\d+"\s+value="([^"]*)"/);
+  return supplierStock && supplierStock[1]!.trim() ? 7 : null;
 }
 
 export function listingPagePath(categoryPath: string, offset: number): string {

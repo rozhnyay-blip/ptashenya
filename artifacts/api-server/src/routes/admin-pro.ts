@@ -387,7 +387,7 @@ router.get("/admin/export/products.csv", async (req, res) => {
   sendCsv(
     res,
     `tovary-${new Date().toISOString().slice(0, 10)}.csv`,
-    ["Код", "Артикул", "Назва", "Категорія", "Закупка", "Ціна продажу", "Прибуток з шт", "Залишок", "В наявності", "Показується", "Продано", "Посилання постачальника"],
+    ["Код", "Артикул", "Назва", "Категорія", "Закупка", "Ціна продажу", "Прибуток з шт", "Залишок", "В наявності", "Доставка від постачальника", "Показується", "Продано", "Посилання постачальника"],
     rows.map((p) => {
       const a = toAdminProduct(p, s, p.categoryId ? (catMap.get(p.categoryId) ?? null) : null);
       return [
@@ -404,6 +404,7 @@ router.get("/admin/export/products.csv", async (req, res) => {
           : p.stockQtyMax === null ? `понад ${p.stockQty} (точно невідомо)`
           : `${p.stockQty}–${p.stockQtyMax} (точно невідомо)`,
         p.inStock ? "так" : "ні",
+        !p.inStock ? null : p.deliveryDays != null && p.deliveryDays > 3 ? `під замовлення, до ${p.deliveryDays} днів` : "зі складу, до 3 днів",
         p.isActive ? "так" : "ні",
         p.salesCount,
         p.supplierUrl,

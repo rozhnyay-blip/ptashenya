@@ -28,6 +28,11 @@ export const productsTable = pgTable(
     stockQty: integer("stock_qty"),
     /** Upper bound of the supplier range; equals stockQty when exact; null when unknown. */
     stockQtyMax: integer("stock_qty_max"),
+    /**
+     * Supplier's delivery term in days for items shipped "під замовлення" from a partner warehouse
+     * (listing shows "Термін доставки до N днів"). null = on the supplier's own warehouse, ships right away.
+     */
+    deliveryDays: integer("delivery_days"),
     priceOverride: numeric("price_override", { precision: 12, scale: 2, mode: "number" }),
     categoryId: integer("category_id"),
     sourceCatId: text("source_cat_id"),

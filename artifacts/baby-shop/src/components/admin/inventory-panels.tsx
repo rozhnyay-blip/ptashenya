@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Download, Flame, LineChart, ListFilter, Warehouse } from "lucide-react";
+import { Clock, Download, Flame, LineChart, ListFilter, Warehouse } from "lucide-react";
 import { useGetAdminInventory, getGetAdminInventoryQueryKey, useListAdminPriceChanges, getListAdminPriceChangesQueryKey } from "@workspace/api-client-react";
 import { Panel } from "@/components/admin/admin-layout";
 import { ProductImage } from "@/components/store/product-image";
@@ -24,7 +24,7 @@ export function InventoryPanels() {
 
   return (
     <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_360px]">
-      <Panel title={<span className="flex items-center gap-2"><Warehouse className="h-4 w-4 text-primary" />{all ? "Наявність сьогодні — усі штуки" : "Наявність сьогодні — по 1 шт. кожного товару"}</span>}>
+      <Panel title={<span className="flex items-center gap-2"><Warehouse className="h-4 w-4 text-primary" />{all ? "В наявності, відправка до 3 днів — усі штуки" : "В наявності, відправка до 3 днів — по 1 шт. кожного"}</span>}>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 pt-3">
           <span className="text-xs font-semibold text-muted-foreground">Як рахувати:</span>
           <CountModeToggle />
@@ -59,11 +59,12 @@ export function InventoryPanels() {
           </div>
         )}
         <p className="border-t border-border px-4 py-2 text-[10px] text-muted-foreground">{all
-          ? <>Рахуються всі штуки на складі постачальника за цінами магазину.{inv.allUnits.approxPositions > 0 && <> Для {num(inv.allUnits.approxPositions)} товарів відомо лише «від–до» (наприклад, 10…50) — беремо мінімум, тож насправді може бути трохи більше.</>}</>
-          : "Кожен товар у наявності рахується 1 раз (1 шт.) за цінами магазину."} Натисніть на категорію, щоб побачити її товари.</p>
+          ? <>Рахуються всі штуки на власному складі постачальника (відправка до 3 днів) за цінами магазину.{inv.allUnits.approxPositions > 0 && <> Для {num(inv.allUnits.approxPositions)} товарів відомо лише «від–до» (наприклад, 10…50) — беремо мінімум, тож насправді може бути трохи більше.</>}</>
+          : "Кожен товар на власному складі постачальника (відправка до 3 днів) рахується 1 раз (1 шт.) за цінами магазину."} Товари «під замовлення» (везуть до 7 днів) не рахуються. Натисніть на категорію, щоб побачити її товари.</p>
         <div className="flex flex-wrap gap-2 border-t border-border px-4 py-3">
           <Link href="/admin/products?stock=in_stock" className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-foreground px-3 text-xs font-bold text-background transition hover:bg-foreground/90" data-testid="link-inventory-products"><ListFilter className="h-3.5 w-3.5" />Усі товари в наявності</Link>
           <a href={`${import.meta.env.BASE_URL}api/admin/export/products.csv?stock=in_stock`} download className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-xs font-semibold transition hover:bg-muted" data-testid="link-inventory-export"><Download className="h-3.5 w-3.5" />Завантажити список (Excel)</a>
+          <Link href="/admin/products?stock=on_order" className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-xs font-semibold transition hover:bg-muted" data-testid="link-inventory-on-order"><Clock className="h-3.5 w-3.5" />Під замовлення (до 7 днів)</Link>
         </div>
       </Panel>
       <div className="space-y-4">

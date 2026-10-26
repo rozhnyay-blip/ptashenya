@@ -25,7 +25,7 @@ import {
 } from "@workspace/api-zod";
 import { requireAdmin } from "../middlewares/auth";
 import { getSettings, retailPriceSql } from "../lib/settings";
-import { adminProductFilter, sellableSql } from "../lib/admin-filters";
+import { adminProductFilter, readySql, sellableSql } from "../lib/admin-filters";
 import { hasSupplierCredentials } from "../lib/supplier";
 import { toAdminProduct, toOrder, toOrderDetail, toSyncRun } from "../lib/serialize";
 import {
@@ -92,13 +92,15 @@ router.get("/admin/dashboard", async (_req, res) => {
     await db.execute<{
       total: number;
       in_stock: number;
+      on_order: number;
       out_of_stock: number;
       hidden: number;
       new_today: number;
       no_price: number;
     }>(sql`
     select count(*)::int as total,
-      (count(*) filter (where ${sellableSql}))::int as in_stock,
+      (count(*) filter (where ${readySql}))::int as in_stock,
+      (count(*) filter (where ${sellableSql} and not (${readySql})))::int as on_order,
       (count(*) filter (where not in_stock))::int as out_of_stock,
       (count(*) filter (where not is_active))::int as hidden,
       (count(*) filter (where in_stock and coalesce(price_override, supplier_price, 0) <= 0))::int as no_price,
@@ -127,6 +129,7 @@ router.get("/admin/dashboard", async (_req, res) => {
     statusCounts: await statusCounts(),
     productsTotal: prod?.total ?? 0,
     productsInStock: prod?.in_stock ?? 0,
+    productsOnOrder: prod?.on_order ?? 0,
     productsOutOfStock: prod?.out_of_stock ?? 0,
     productsHidden: prod?.hidden ?? 0,
     productsNewToday: prod?.new_today ?? 0,
@@ -191,7 +194,7 @@ router.get("/admin/category-breakdown", async (_req, res) => {
     ),
     prod as (
       select cat.top_id, count(p.id)::int as product_count,
-        (count(p.id) filter (where p.in_stock and p.is_active))::int as in_stock
+        (count(p.id) filter (where p.in_stock and p.is_active and (p.delivery_days is null or p.delivery_days <= 3)))::int as in_stock
       from products p join cat on cat.id = p.category_id group by cat.top_id
     ),
     rev as (

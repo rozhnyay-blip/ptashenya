@@ -29,6 +29,11 @@ export interface Product {
      * @nullable
      */
   stockQtyMax?: number | null;
+  /**
+     * On-order item shipped from a partner warehouse in up to N days; null = supplier's own warehouse
+     * @nullable
+     */
+  deliveryDays?: number | null;
   isNew: boolean;
   isFeatured?: boolean;
   /** @nullable */

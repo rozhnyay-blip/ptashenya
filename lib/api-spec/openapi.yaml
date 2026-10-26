@@ -356,7 +356,7 @@ paths:
           required: false
           schema:
             type: string
-            enum: [all, in_stock, out_of_stock, hidden]
+            enum: [all, in_stock, on_order, out_of_stock, hidden]
         - name: sort
           in: query
           required: false
@@ -386,7 +386,7 @@ paths:
           required: false
           schema:
             type: string
-            enum: [all, in_stock, out_of_stock, hidden]
+            enum: [all, in_stock, on_order, out_of_stock, hidden]
         - name: whatIfMarkup
           in: query
           required: false
@@ -665,6 +665,7 @@ components:
         inStock: { type: boolean }
         stockQty: { type: ["integer", "null"], description: "Guaranteed units on the supplier warehouse (lower bound when the supplier shows a range)" }
         stockQtyMax: { type: ["integer", "null"], description: "Upper bound of the supplier stock range; equals stockQty when exact; null when unknown (e.g. 'over 100')" }
+        deliveryDays: { type: ["integer", "null"], description: "On-order item shipped from a partner warehouse in up to N days; null = supplier's own warehouse" }
         isNew: { type: boolean }
         isFeatured: { type: boolean }
         imageUrl: { type: ["string", "null"] }
@@ -874,7 +875,7 @@ components:
 
     AdminDashboard:
       type: object
-      required: [revenueTotal, revenue30d, revenuePrev30d, profit30d, ordersTotal, orders30d, ordersToday, revenueToday, avgOrderValue, statusCounts, productsTotal, productsInStock, productsOutOfStock, productsHidden, productsNewToday, customersTotal]
+      required: [revenueTotal, revenue30d, revenuePrev30d, profit30d, ordersTotal, orders30d, ordersToday, revenueToday, avgOrderValue, statusCounts, productsTotal, productsInStock, productsOnOrder, productsOutOfStock, productsHidden, productsNewToday, customersTotal]
       properties:
         revenueTotal: { type: number }
         revenue30d: { type: number }
@@ -887,7 +888,8 @@ components:
         avgOrderValue: { type: number }
         statusCounts: { $ref: "#/components/schemas/StatusCounts" }
         productsTotal: { type: integer }
-        productsInStock: { type: integer }
+        productsInStock: { type: integer, description: "Ready to ship: on the supplier's own warehouse, sellable" }
+        productsOnOrder: { type: integer, description: "Sellable but shipped from a partner warehouse (longer delivery)" }
         productsOutOfStock: { type: integer }
         productsHidden: { type: integer }
         productsNewToday: { type: integer }

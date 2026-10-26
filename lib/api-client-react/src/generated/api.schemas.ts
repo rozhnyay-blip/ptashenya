@@ -53,6 +53,11 @@ export interface Product {
      * @nullable
      */
   stockQtyMax?: number | null;
+  /**
+     * On-order item shipped from a partner warehouse in up to N days; null = supplier's own warehouse
+     * @nullable
+     */
+  deliveryDays?: number | null;
   isNew: boolean;
   isFeatured?: boolean;
   /** @nullable */
@@ -315,7 +320,10 @@ export interface AdminDashboard {
   avgOrderValue: number;
   statusCounts: StatusCounts;
   productsTotal: number;
+  /** Ready to ship: on the supplier's own warehouse, sellable */
   productsInStock: number;
+  /** Sellable but shipped from a partner warehouse (longer delivery) */
+  productsOnOrder: number;
   productsOutOfStock: number;
   productsHidden: number;
   productsNewToday: number;
@@ -733,6 +741,7 @@ export type ListAdminProductsStock = typeof ListAdminProductsStock[keyof typeof 
 export const ListAdminProductsStock = {
   all: 'all',
   in_stock: 'in_stock',
+  on_order: 'on_order',
   out_of_stock: 'out_of_stock',
   hidden: 'hidden',
 } as const;
@@ -768,6 +777,7 @@ export type GetAdminProductsSummaryStock = typeof GetAdminProductsSummaryStock[k
 export const GetAdminProductsSummaryStock = {
   all: 'all',
   in_stock: 'in_stock',
+  on_order: 'on_order',
   out_of_stock: 'out_of_stock',
   hidden: 'hidden',
 } as const;

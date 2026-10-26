@@ -20,7 +20,10 @@ export interface AdminDashboard {
   avgOrderValue: number;
   statusCounts: StatusCounts;
   productsTotal: number;
+  /** Ready to ship: on the supplier's own warehouse, sellable */
   productsInStock: number;
+  /** Sellable but shipped from a partner warehouse (longer delivery) */
+  productsOnOrder: number;
   productsOutOfStock: number;
   productsHidden: number;
   productsNewToday: number;

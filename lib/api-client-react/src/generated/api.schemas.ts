@@ -363,15 +363,10 @@ export type AdminProduct = Product & ({
      */
   stockValue?: number | null;
   /**
-     * Profit if the guaranteed stock is sold
+     * Profit if the whole stock is sold; null unless the supplier quantity is known exactly
      * @nullable
      */
   stockProfit?: number | null;
-  /**
-     * Profit if the stock is at the top of the supplier range
-     * @nullable
-     */
-  stockProfitMax?: number | null;
   /** @nullable */
   seoTitle?: string | null;
 });
@@ -459,31 +454,24 @@ export interface SyncSourcesInput {
 
 export interface WhatIfMoney {
   markupPercent: number;
-  /** Revenue for guaranteed units at the hypothetical markup (rounding and manual prices applied) */
+  /** Revenue for exactly-known units at the hypothetical markup (rounding and manual prices applied) */
   retailValue: number;
   profit: number;
-  retailValueMax: number;
-  profitMax: number;
 }
 
 export interface ProductsSummary {
   /** Products matching the filter */
   positions: number;
-  /** Of them sellable with known stock */
+  /** Of them sellable and in stock */
   positionsWithStock: number;
-  /** Guaranteed units (lower bound of supplier ranges) */
+  /** Units of exactly-known positions */
   unitsInStock: number;
   /** Purchase cost of all units in stock */
   costValue: number;
   /** Revenue if every unit is sold at current prices */
   retailValue: number;
   profit: number;
-  /** Units at the top of the supplier ranges */
-  unitsMax: number;
-  costValueMax: number;
-  retailValueMax: number;
-  profitMax: number;
-  /** Sellable positions whose quantity is known exactly */
+  /** Sellable positions whose quantity is known exactly — only these are counted in units and money */
   exactPositions: number;
   /** Profit as percent of revenue */
   marginPercent: number;
@@ -527,22 +515,15 @@ export interface InventoryCategory {
   costValue: number;
   retailValue: number;
   profit: number;
-  unitsMax: number;
-  retailValueMax: number;
-  profitMax: number;
 }
 
 export interface InventoryReport {
   positionsInStock: number;
-  /** Guaranteed units */
+  /** Units of exactly-known positions */
   unitsInStock: number;
   costValue: number;
   retailValue: number;
   profit: number;
-  unitsMax: number;
-  costValueMax: number;
-  retailValueMax: number;
-  profitMax: number;
   exactPositions: number;
   marginPercent: number;
   markupPercent: number;

@@ -7,7 +7,7 @@ import {
   syncSourcesTable,
   type SyncRunRow,
 } from "@workspace/db";
-import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { logger } from "./logger";
 import { getSettings, kyivNow } from "./settings";
 import { runSeo } from "./seo";
@@ -137,7 +137,7 @@ async function saveProducts(state: RunState, target: CrawlTarget, items: ListedP
   for (const p of items) {
     if (state.seenSkus.has(p.sku)) continue;
     state.seenSkus.add(p.sku);
-    if (p.stockQty !== null && p.stockQty > 0 && p.stockQtyMax === null) state.openRangeSkus.add(p.sku);
+    if (p.stockQty !== null && p.stockQty > 0 && p.stockQtyMax !== p.stockQty) state.openRangeSkus.add(p.sku);
     fresh.push(p);
   }
   if (fresh.length === 0) return;
@@ -196,13 +196,10 @@ async function saveProducts(state: RunState, target: CrawlTarget, items: ListedP
         image2Url: sql`excluded.image2_url`,
         supplierPrice: sql`coalesce(excluded.supplier_price, products.supplier_price)`,
         supplierOldPrice: sql`excluded.supplier_old_price`,
-        // "понад 100" on the listing: keep yesterday's exact count (above the bound) until the product page refines it.
-        stockQty: sql`case when excluded.stock_qty_max is null and excluded.stock_qty is not null
-          and products.stock_qty_max = products.stock_qty and products.stock_qty > excluded.stock_qty
-          then products.stock_qty else excluded.stock_qty end`,
-        stockQtyMax: sql`case when excluded.stock_qty_max is null and excluded.stock_qty is not null
-          and products.stock_qty_max = products.stock_qty and products.stock_qty > excluded.stock_qty
-          then products.stock_qty_max else excluded.stock_qty_max end`,
+        // Listing shows a range ("10...50", "понад 100"): keep yesterday's exact count while it still fits
+        // the range, until the product page refines it.
+        stockQty: sql`case when ${keepExactSql} then products.stock_qty else excluded.stock_qty end`,
+        stockQtyMax: sql`case when ${keepExactSql} then products.stock_qty_max else excluded.stock_qty_max end`,
         categoryId: sql`excluded.category_id`,
         sourceCatId: sql`excluded.source_cat_id`,
         isNew: sql`excluded.is_new`,
@@ -245,12 +242,19 @@ async function pool<T>(items: T[], worker: (item: T) => Promise<void>) {
   await Promise.all(runners);
 }
 
-const REFINE_CONCURRENCY = 3;
-const REFINE_BUDGET_MS = 30 * 60_000;
+/** Upsert guard: the listing shows a range and yesterday's exact count still lies inside it. */
+const keepExactSql = sql`(excluded.stock_qty is not null and excluded.stock_qty > 0
+  and excluded.stock_qty_max is distinct from excluded.stock_qty
+  and products.stock_qty_max = products.stock_qty
+  and products.stock_qty >= excluded.stock_qty
+  and (excluded.stock_qty_max is null or products.stock_qty <= excluded.stock_qty_max))`;
+
+const REFINE_CONCURRENCY = 4;
+const REFINE_BUDGET_MS = 45 * 60_000;
 
 /**
- * Listings cap big stocks at "понад 100"; the product page carries the exact count.
- * Refines every in-stock product whose upper bound is unknown plus those the listing just showed as open-ended.
+ * Listings show bigger stocks as ranges ("5...10", "10...50", "понад 100"); the product page often carries
+ * the exact count. Refines every in-stock product whose quantity is not exact, biggest stocks first.
  */
 export async function refineOpenRanges(state?: RunState) {
   const skus = state ? [...state.openRangeSkus] : [];
@@ -261,11 +265,12 @@ export async function refineOpenRanges(state?: RunState) {
       and(
         eq(productsTable.inStock, true),
         skus.length > 0
-          ? or(isNull(productsTable.stockQtyMax), inArray(productsTable.sku, skus))
-          : isNull(productsTable.stockQtyMax),
+          ? or(isNull(productsTable.stockQtyMax), ne(productsTable.stockQtyMax, productsTable.stockQty), inArray(productsTable.sku, skus))
+          : or(isNull(productsTable.stockQtyMax), ne(productsTable.stockQtyMax, productsTable.stockQty)),
         sql`${productsTable.stockQty} > 0`,
       ),
-    );
+    )
+    .orderBy(desc(productsTable.stockQty));
   if (rows.length === 0) return;
   const started = Date.now();
   let done = 0;
@@ -274,7 +279,7 @@ export async function refineOpenRanges(state?: RunState) {
   let unparsed = 0;
   const setStep = async (force = false) => {
     if (!state) return;
-    state.currentStep = `Уточнюю точні залишки (понад 100 шт.): ${done} з ${rows.length}`;
+    state.currentStep = `Уточнюю точні залишки: ${done} з ${rows.length}`;
     await state.flush(force);
   };
   await setStep(true);

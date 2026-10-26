@@ -10,21 +10,16 @@ import type { WhatIfMoney } from './whatIfMoney';
 export interface ProductsSummary {
   /** Products matching the filter */
   positions: number;
-  /** Of them sellable with known stock */
+  /** Of them sellable and in stock */
   positionsWithStock: number;
-  /** Guaranteed units (lower bound of supplier ranges) */
+  /** Units of exactly-known positions */
   unitsInStock: number;
   /** Purchase cost of all units in stock */
   costValue: number;
   /** Revenue if every unit is sold at current prices */
   retailValue: number;
   profit: number;
-  /** Units at the top of the supplier ranges */
-  unitsMax: number;
-  costValueMax: number;
-  retailValueMax: number;
-  profitMax: number;
-  /** Sellable positions whose quantity is known exactly */
+  /** Sellable positions whose quantity is known exactly — only these are counted in units and money */
   exactPositions: number;
   /** Profit as percent of revenue */
   marginPercent: number;

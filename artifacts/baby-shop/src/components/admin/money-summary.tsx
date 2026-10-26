@@ -12,14 +12,11 @@ import { useToast } from "@/hooks/use-toast";
 import { apiError, num, pct, uah, uahCompact } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-/** Guaranteed amount (big) with the top of the supplier's stock range underneath. */
-function Big({ label, value, max, sub, tone, testid }: { label: string; value: number; max?: number; sub?: string; tone?: "profit" | "dark"; testid: string }) {
-  const hasRange = max !== undefined && max - value >= 1;
+function Big({ label, value, sub, tone, testid }: { label: string; value: number; sub?: string; tone?: "profit" | "dark"; testid: string }) {
   return (
     <div className={cn("min-w-0 rounded-xl p-3", tone === "dark" ? "bg-sidebar text-sidebar-foreground" : tone === "profit" ? "bg-[hsl(160_45%_90%)] text-[hsl(165_55%_20%)]" : "bg-muted/60")}>
       <div className={cn("text-[10px] font-semibold uppercase tracking-wider", tone === "dark" ? "text-sidebar-foreground/60" : "opacity-70")}>{label}</div>
-      <div className="mt-1 truncate font-mono text-xl font-semibold tabular sm:text-2xl" title={uah(value)} data-testid={testid}>{hasRange ? "від " : ""}{uahCompact(value)}</div>
-      {hasRange && <div className="truncate font-mono text-xs font-semibold tabular opacity-80" title={uah(max)} data-testid={`${testid}-max`}>до {uahCompact(max)}</div>}
+      <div className="mt-1 truncate font-mono text-xl font-semibold tabular sm:text-2xl" title={uah(value)} data-testid={testid}>{uahCompact(value)}</div>
       {sub && <div className={cn("mt-0.5 truncate text-[11px]", tone === "dark" ? "text-sidebar-foreground/60" : "opacity-70")}>{sub}</div>}
     </div>
   );
@@ -44,7 +41,8 @@ export function MoneySummary({ params }: { params: GetAdminProductsSummaryParams
 
   const markup = m ?? s.markupPercent;
   const same = markup === s.markupPercent;
-  const w = same ? { retailValue: s.retailValue, profit: s.profit, retailValueMax: s.retailValueMax, profitMax: s.profitMax } : wi?.whatIf ?? null;
+  const w = same ? { retailValue: s.retailValue, profit: s.profit } : wi?.whatIf ?? null;
+  const notCounted = Math.max(0, s.positionsWithStock - s.exactPositions);
   const pending = !same && (wiLoading || !w || wi?.whatIf?.markupPercent !== markup);
   const changed = Math.round(markup) !== Math.round(s.markupPercent);
   const apply = () => upd.mutate({ data: { markupPercent: markup } }, {
@@ -61,15 +59,15 @@ export function MoneySummary({ params }: { params: GetAdminProductsSummaryParams
       <section className="rounded-2xl border border-card-border bg-card p-4">
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-sm font-bold">Якщо продати весь доступний залишок</h2>
-          <span className="font-mono text-[11px] text-muted-foreground tabular" data-testid="text-summary-positions">{num(s.positionsWithStock)} з {num(s.positions)} позицій · {s.unitsMax > s.unitsInStock ? `від ${num(s.unitsInStock)} до ${num(s.unitsMax)}` : num(s.unitsInStock)} шт</span>
+          <span className="font-mono text-[11px] text-muted-foreground tabular" data-testid="text-summary-positions">{num(s.exactPositions)} позицій · {num(s.unitsInStock)} шт</span>
         </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <Big label="Вартість закупки" value={s.costValue} max={s.costValueMax} sub="стільки коштує товар у постачальника" testid="text-summary-cost" />
-          <Big tone="dark" label="Виручка" value={s.retailValue} max={s.retailValueMax} sub="за поточними цінами магазину" testid="text-summary-retail" />
-          <Big tone="profit" label="Ваш прибуток" value={s.profit} max={s.profitMax} sub={`маржа ${pct(s.marginPercent)} · націнка ${pct(s.markupPercent, 0)}`} testid="text-summary-profit" />
+          <Big label="Вартість закупки" value={s.costValue} sub="стільки коштує товар у постачальника" testid="text-summary-cost" />
+          <Big tone="dark" label="Виручка" value={s.retailValue} sub="за поточними цінами магазину" testid="text-summary-retail" />
+          <Big tone="profit" label="Ваш прибуток" value={s.profit} sub={`маржа ${pct(s.marginPercent)} · націнка ${pct(s.markupPercent, 0)}`} testid="text-summary-profit" />
         </div>
         <p className="mt-3 flex gap-1.5 text-[11px] leading-snug text-muted-foreground"><Info className="mt-px h-3 w-3 shrink-0" />
-          <span>Рахуються лише товари, які можна купити в магазині: є на складі, не приховані, з ціною. Ціни — точно як у магазині (з округленням і ручними цінами). Малі залишки постачальник показує точно, а більші — діапазоном («5–10», «10–50», «50–100»), тому «від» — гарантований мінімум, «до» — верхня межа. Точно відома кількість у {num(s.exactPositions)} з {num(s.positionsWithStock)} позицій.</span></p>
+          <span>Рахуються лише позиції з точною кількістю на складі постачальника, які можна купити в магазині. Ціни — точно як у магазині (з округленням і ручними цінами).{notCounted > 0 && <> Не враховано {num(notCounted)} поз., для яких постачальник показує лише діапазон («10–50 шт.», «понад 100»).</>}</span></p>
       </section>
 
       <section className="rounded-2xl border border-card-border bg-card p-4">
@@ -82,11 +80,10 @@ export function MoneySummary({ params }: { params: GetAdminProductsSummaryParams
           </div>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
-          {([["Виручка", w?.retailValue, w?.retailValueMax, "text-whatif-revenue", "bg-muted/60"], ["Прибуток", w?.profit, w?.profitMax, "text-whatif-profit", "bg-[hsl(160_45%_90%)] text-[hsl(165_55%_20%)]"]] as const).map(([l, v, mx, tid, cls]) => (
+          {([["Виручка", w?.retailValue, "text-whatif-revenue", "bg-muted/60"], ["Прибуток", w?.profit, "text-whatif-profit", "bg-[hsl(160_45%_90%)] text-[hsl(165_55%_20%)]"]] as const).map(([l, v, tid, cls]) => (
             <div key={tid} className={cn("min-w-0 rounded-xl p-2.5 transition-opacity", cls, pending && "opacity-50")}>
               <div className="text-[10px] font-semibold uppercase tracking-wider opacity-70">{l}</div>
-              <div className="truncate font-mono text-lg font-semibold tabular" title={v != null ? uah(v) : undefined} data-testid={tid}>{v != null ? `${mx != null && mx - v >= 1 ? "від " : ""}${uahCompact(v)}` : "…"}</div>
-              {v != null && mx != null && mx - v >= 1 && <div className="truncate font-mono text-[11px] font-semibold tabular opacity-80" title={uah(mx)}>до {uahCompact(mx)}</div>}
+              <div className="truncate font-mono text-lg font-semibold tabular" title={v != null ? uah(v) : undefined} data-testid={tid}>{v != null ? uahCompact(v) : "…"}</div>
             </div>
           ))}
         </div>

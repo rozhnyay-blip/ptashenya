@@ -891,8 +891,7 @@ components:
             lastSeenAt: { type: ["string", "null"], format: date-time }
             profitPerUnit: { type: ["number", "null"], description: "Retail minus purchase price" }
             stockValue: { type: ["number", "null"], description: "Retail price times units in stock" }
-            stockProfit: { type: ["number", "null"], description: "Profit if the guaranteed stock is sold" }
-            stockProfitMax: { type: ["number", "null"], description: "Profit if the stock is at the top of the supplier range" }
+            stockProfit: { type: ["number", "null"], description: "Profit if the whole stock is sold; null unless the supplier quantity is known exactly" }
             seoTitle: { type: ["string", "null"] }
 
     AdminProductPage:
@@ -1000,19 +999,15 @@ components:
 
     ProductsSummary:
       type: object
-      required: [positions, positionsWithStock, unitsInStock, costValue, retailValue, profit, unitsMax, costValueMax, retailValueMax, profitMax, exactPositions, marginPercent, markupPercent]
+      required: [positions, positionsWithStock, unitsInStock, costValue, retailValue, profit, exactPositions, marginPercent, markupPercent]
       properties:
         positions: { type: integer, description: "Products matching the filter" }
-        positionsWithStock: { type: integer, description: "Of them sellable with known stock" }
-        unitsInStock: { type: integer, description: "Guaranteed units (lower bound of supplier ranges)" }
+        positionsWithStock: { type: integer, description: "Of them sellable and in stock" }
+        unitsInStock: { type: integer, description: "Units of exactly-known positions" }
         costValue: { type: number, description: "Purchase cost of all units in stock" }
         retailValue: { type: number, description: "Revenue if every unit is sold at current prices" }
         profit: { type: number }
-        unitsMax: { type: integer, description: "Units at the top of the supplier ranges" }
-        costValueMax: { type: number }
-        retailValueMax: { type: number }
-        profitMax: { type: number }
-        exactPositions: { type: integer, description: "Sellable positions whose quantity is known exactly" }
+        exactPositions: { type: integer, description: "Sellable positions whose quantity is known exactly — only these are counted in units and money" }
         marginPercent: { type: number, description: "Profit as percent of revenue" }
         markupPercent: { type: number, description: "Current store markup" }
         whatIf:
@@ -1022,13 +1017,11 @@ components:
 
     WhatIfMoney:
       type: object
-      required: [markupPercent, retailValue, profit, retailValueMax, profitMax]
+      required: [markupPercent, retailValue, profit]
       properties:
         markupPercent: { type: number }
-        retailValue: { type: number, description: "Revenue for guaranteed units at the hypothetical markup (rounding and manual prices applied)" }
+        retailValue: { type: number, description: "Revenue for exactly-known units at the hypothetical markup (rounding and manual prices applied)" }
         profit: { type: number }
-        retailValueMax: { type: number }
-        profitMax: { type: number }
 
     BulkProductAction:
       type: object
@@ -1052,7 +1045,7 @@ components:
 
     InventoryCategory:
       type: object
-      required: [categoryId, name, positions, units, costValue, retailValue, profit, unitsMax, retailValueMax, profitMax]
+      required: [categoryId, name, positions, units, costValue, retailValue, profit]
       properties:
         categoryId: { type: integer }
         name: { type: string }
@@ -1061,23 +1054,16 @@ components:
         costValue: { type: number }
         retailValue: { type: number }
         profit: { type: number }
-        unitsMax: { type: integer }
-        retailValueMax: { type: number }
-        profitMax: { type: number }
 
     InventoryReport:
       type: object
-      required: [positionsInStock, unitsInStock, costValue, retailValue, profit, unitsMax, costValueMax, retailValueMax, profitMax, exactPositions, marginPercent, markupPercent, categories, lowStockBestsellers]
+      required: [positionsInStock, unitsInStock, costValue, retailValue, profit, exactPositions, marginPercent, markupPercent, categories, lowStockBestsellers]
       properties:
         positionsInStock: { type: integer }
-        unitsInStock: { type: integer, description: "Guaranteed units" }
+        unitsInStock: { type: integer, description: "Units of exactly-known positions" }
         costValue: { type: number }
         retailValue: { type: number }
         profit: { type: number }
-        unitsMax: { type: integer }
-        costValueMax: { type: number }
-        retailValueMax: { type: number }
-        profitMax: { type: number }
         exactPositions: { type: integer }
         marginPercent: { type: number }
         markupPercent: { type: number }

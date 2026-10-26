@@ -37,8 +37,8 @@ export const sellableSql = sql`(products.in_stock and products.is_active
   and coalesce(products.price_override, products.supplier_price, 0) > 0
   and products.source_cat_id in (select supplier_cat_id from sync_sources where enabled))`;
 
-/** Guaranteed units (lower bound of the supplier's range). */
-export const qtyMinSql = sql`(case when ${sellableSql} then coalesce(products.stock_qty, 0) else 0 end)`;
-
-/** Units at the top of the supplier's range; unknown upper bound falls back to the guaranteed count. */
-export const qtyMaxSql = sql`(case when ${sellableSql} then coalesce(products.stock_qty_max, products.stock_qty, 0) else 0 end)`;
+/**
+ * Units counted in stock money: only positions whose supplier quantity is known exactly.
+ * Ranges ("10...50", "понад 100") are left out on purpose — the owner wants exact figures only.
+ */
+export const exactQtySql = sql`(case when ${sellableSql} and products.stock_qty_max = products.stock_qty then coalesce(products.stock_qty, 0) else 0 end)`;

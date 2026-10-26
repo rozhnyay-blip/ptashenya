@@ -30,15 +30,10 @@ export type AdminProduct = Product & ({
      */
   stockValue?: number | null;
   /**
-     * Profit if the guaranteed stock is sold
+     * Profit if the whole stock is sold; null unless the supplier quantity is known exactly
      * @nullable
      */
   stockProfit?: number | null;
-  /**
-     * Profit if the stock is at the top of the supplier range
-     * @nullable
-     */
-  stockProfitMax?: number | null;
   /** @nullable */
   seoTitle?: string | null;
 });

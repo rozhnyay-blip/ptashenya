@@ -22,14 +22,13 @@ export function InventoryPanels() {
       <Panel title={<span className="flex items-center gap-2"><Warehouse className="h-4 w-4 text-primary" />Вартість складу постачальника</span>} action={<Link href="/admin/products?stock=in_stock&sort=profit_desc" className="text-xs font-semibold text-primary" data-testid="link-inventory-products">До товарів</Link>}>
         <div className="grid grid-cols-2 gap-px border-b border-border bg-border sm:grid-cols-4">
           {[
-            ["Закупка", inv.costValue, inv.costValueMax, `${num(inv.positionsInStock)} поз. · ${inv.unitsMax > inv.unitsInStock ? `${num(inv.unitsInStock)}–${num(inv.unitsMax)}` : num(inv.unitsInStock)} шт`],
-            ["Виручка", inv.retailValue, inv.retailValueMax, `націнка ${pct(inv.markupPercent, 0)}`],
-            ["Прибуток", inv.profit, inv.profitMax, `маржа ${pct(inv.marginPercent)}`],
-          ].map(([l, v, mx, sub], i) => (
+            ["Закупка", inv.costValue, `${num(inv.exactPositions)} поз. · ${num(inv.unitsInStock)} шт`],
+            ["Виручка", inv.retailValue, `націнка ${pct(inv.markupPercent, 0)}`],
+            ["Прибуток", inv.profit, `маржа ${pct(inv.marginPercent)}`],
+          ].map(([l, v, sub], i) => (
             <div key={l as string} className={i === 2 ? "col-span-2 bg-[hsl(160_45%_93%)] p-4 text-[hsl(165_55%_20%)] sm:col-span-2" : "bg-card p-4"}>
               <div className="text-[10px] font-semibold uppercase tracking-wider opacity-70">{l}</div>
-              <div className="mt-1 font-mono text-xl font-semibold tabular" title={uah(v as number)} data-testid={`text-inventory-${i}`}>{(mx as number) - (v as number) >= 1 ? "від " : ""}{uahCompact(v as number)}</div>
-              {(mx as number) - (v as number) >= 1 && <div className="font-mono text-xs font-semibold tabular opacity-80" title={uah(mx as number)}>до {uahCompact(mx as number)}</div>}
+              <div className="mt-1 font-mono text-xl font-semibold tabular" title={uah(v as number)} data-testid={`text-inventory-${i}`}>{uahCompact(v as number)}</div>
               <div className="text-[11px] opacity-70">{sub}</div>
             </div>
           ))}
@@ -37,19 +36,19 @@ export function InventoryPanels() {
         {cats.length === 0 ? <p className="p-6 text-center text-sm text-muted-foreground">Товарів у наявності немає</p> : (
           <div className="max-h-[360px] overflow-y-auto">
             <table className="w-full text-xs">
-              <thead className="sticky top-0 bg-card"><tr className="text-left text-[10px] uppercase tracking-wider text-muted-foreground"><th className="px-4 py-2">Категорія</th><th className="hidden px-2 text-right sm:table-cell">Шт (від–до)</th><th className="px-2 text-right">Виручка від</th><th className="px-4 text-right">Прибуток (від–до)</th></tr></thead>
+              <thead className="sticky top-0 bg-card"><tr className="text-left text-[10px] uppercase tracking-wider text-muted-foreground"><th className="px-4 py-2">Категорія</th><th className="hidden px-2 text-right sm:table-cell">Шт</th><th className="px-2 text-right">Виручка</th><th className="px-4 text-right">Прибуток</th></tr></thead>
               <tbody>{cats.map((c) => (
                 <tr key={c.categoryId} className="border-t border-border/70 hover:bg-muted/40">
                   <td className="px-4 py-1.5"><Link href={`/admin/products?cat=${c.categoryId}&stock=in_stock`} className="block" data-testid={`link-inv-cat-${c.categoryId}`}><div className="truncate font-medium">{c.name}</div><div className="mt-1 h-1 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-[hsl(285_35%_30%)]" style={{ width: `${(c.retailValue / maxR) * 100}%` }} /></div></Link></td>
-                  <td className="hidden px-2 text-right font-mono tabular text-muted-foreground sm:table-cell">{c.unitsMax > c.units ? `${num(c.units)}–${num(c.unitsMax)}` : num(c.units)}</td>
+                  <td className="hidden px-2 text-right font-mono tabular text-muted-foreground sm:table-cell">{num(c.units)}</td>
                   <td className="px-2 text-right font-mono tabular" title={uah(c.retailValue)}>{uahCompact(c.retailValue)}</td>
-                  <td className="px-4 text-right font-mono font-semibold tabular text-[hsl(165_55%_28%)]" title={`${uah(c.profit)} – ${uah(c.profitMax)}`}>{uahCompact(c.profit)}{c.profitMax - c.profit >= 1 && <span className="font-normal opacity-70">–{uahCompact(c.profitMax)}</span>}</td>
+                  <td className="px-4 text-right font-mono font-semibold tabular text-[hsl(165_55%_28%)]" title={uah(c.profit)}>{uahCompact(c.profit)}</td>
                 </tr>
               ))}</tbody>
             </table>
           </div>
         )}
-        <p className="border-t border-border px-4 py-2 text-[10px] text-muted-foreground">Якщо продати весь доступний залишок за цінами магазину. Великі залишки постачальник показує діапазоном, тому «від» — гарантований мінімум, «до» — верхня межа. Точна кількість відома для {num(inv.exactPositions)} з {num(inv.positionsInStock)} позицій.</p>
+        <p className="border-t border-border px-4 py-2 text-[10px] text-muted-foreground">Якщо продати весь доступний залишок за цінами магазину. Рахуються лише позиції з точною кількістю{inv.positionsInStock > inv.exactPositions && <> — не враховано {num(inv.positionsInStock - inv.exactPositions)} поз., де постачальник показує лише діапазон</>}.</p>
       </Panel>
       <div className="space-y-4">
         <Panel title={<span className="flex items-center gap-2"><Flame className="h-4 w-4 text-primary" />Хіти, що закінчуються</span>}>

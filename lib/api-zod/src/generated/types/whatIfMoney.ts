@@ -8,9 +8,7 @@
 
 export interface WhatIfMoney {
   markupPercent: number;
-  /** Revenue for guaranteed units at the hypothetical markup (rounding and manual prices applied) */
+  /** Revenue for exactly-known units at the hypothetical markup (rounding and manual prices applied) */
   retailValue: number;
   profit: number;
-  retailValueMax: number;
-  profitMax: number;
 }

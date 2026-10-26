@@ -99,7 +99,7 @@ export default function ProductPage() {
           </div>
           <div className="mt-3">
             {p.inStock
-              ? <span className="inline-flex items-center gap-1.5 rounded-full bg-[hsl(160_45%_90%)] px-3 py-1 text-xs font-bold text-[hsl(165_55%_24%)]" data-testid="status-stock"><span className="h-1.5 w-1.5 rounded-full bg-current" />{p.stockQty != null && p.stockQty <= 5 ? `Лишилось ${p.stockQty} шт.` : "Є в наявності"}</span>
+              ? <span className="inline-flex items-center gap-1.5 rounded-full bg-[hsl(160_45%_90%)] px-3 py-1 text-xs font-bold text-[hsl(165_55%_24%)]" data-testid="status-stock"><span className="h-1.5 w-1.5 rounded-full bg-current" />{p.stockQty != null && p.stockQtyMax === p.stockQty && p.stockQty <= 5 ? `Лишилось ${p.stockQty} шт.` : "Є в наявності"}</span>
               : <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-bold text-muted-foreground" data-testid="status-stock"><PackageX className="h-3.5 w-3.5" />Немає в наявності</span>}
           </div>
           {p.inStock && (

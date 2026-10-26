@@ -11,4 +11,10 @@ export type GetAdminProductsSummaryParams = {
 search?: string;
 categoryId?: number;
 stock?: GetAdminProductsSummaryStock;
+/**
+ * Also compute revenue and profit as if the store markup were this percent
+ * @minimum 0
+ * @maximum 500
+ */
+whatIfMarkup?: number;
 };

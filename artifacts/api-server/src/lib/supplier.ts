@@ -39,8 +39,10 @@ export interface ListedProduct {
   price: number | null;
   /** Crossed-out regular price when the supplier runs a sale. */
   oldPrice: number | null;
-  /** Units on the supplier warehouse; null when not visible (guest session). */
+  /** Guaranteed units on the supplier warehouse; null when not visible (guest session). */
   stockQty: number | null;
+  /** Upper bound of the shown range; equals stockQty when exact; null when unknown ("понад 100"). */
+  stockQtyMax: number | null;
   article: string | null;
   isNew: boolean;
 }
@@ -227,12 +229,7 @@ export function parseListing(html: string): ListingPage {
     const oldPrice = parseMoney(el.querySelector(".price .price-regular del")?.text);
 
     const stockEl = el.querySelector(".product-stock .stock");
-    let stockQty: number | null = null;
-    if (stockEl) {
-      const t = stockEl.text.replace(/<!--[\s\S]*?-->/g, "");
-      const n = t.match(/(\d+)/);
-      stockQty = n ? Number(n[1]) : 0;
-    }
+    const stock = stockEl ? parseStock(stockEl.innerHTML) : { min: null, max: null };
     const articleMatch = descText.match(/Артикул:\s*([^\n\r]+)/);
 
     products.push({
@@ -244,7 +241,8 @@ export function parseListing(html: string): ListingPage {
       image2Url: photo2 && !photo2.includes("no-photo") ? absUrl(photo2) : null,
       price,
       oldPrice: oldPrice !== null && price !== null && oldPrice > price ? oldPrice : null,
-      stockQty,
+      stockQty: stock.min,
+      stockQtyMax: stock.max,
       article: articleMatch ? clean(articleMatch[1]) || null : null,
       isNew: !!el.querySelector(".corner.color_newitem"),
     });
@@ -259,6 +257,33 @@ export function parseListing(html: string): ListingPage {
 export function listingPagePath(categoryPath: string, offset: number): string {
   const base = categoryPath.replace(/\/$/, "");
   return offset === 0 ? base : `${base}/offset${offset}/`;
+}
+
+/**
+ * Supplier stock label → guaranteed (min) and upper (max) units.
+ * Formats: "3 шт." (exact), "10...50 шт." (range), "понад 100 шт." (open range; product pages also carry
+ * the exact count in an HTML comment: "<!-- 206 шт.--> понад 100 шт.").
+ */
+export function parseStock(raw: string): { min: number; max: number | null } {
+  const hidden = raw.match(/<!--\s*(\d+)\s*шт/);
+  if (hidden) {
+    const n = Number(hidden[1]);
+    return { min: n, max: n };
+  }
+  const t = raw.replace(/<!--[\s\S]*?-->/g, "").replace(/<[^>]+>/g, " ").replace(/&gt;/g, ">");
+  const range = t.match(/(\d+)\s*\.{2,}\s*(\d+)/);
+  if (range) return { min: Number(range[1]), max: Number(range[2]) };
+  const over = t.match(/(?:понад|більше|>)\s*(\d+)/i);
+  if (over) return { min: Number(over[1]), max: null };
+  const n = t.match(/(\d+)/);
+  const v = n ? Number(n[1]) : 0;
+  return { min: v, max: v };
+}
+
+/** Exact stock from a product page (only the product page reveals counts above 100). */
+export function parseProductStock(html: string): { min: number; max: number | null } | null {
+  const m = html.match(/<span class="stock">([\s\S]*?)<\/span>/);
+  return m ? parseStock(m[1]!) : null;
 }
 
 export function parseProductDetails(html: string, sku: string): ProductDetails {

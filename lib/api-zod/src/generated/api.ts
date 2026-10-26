@@ -68,7 +68,8 @@ export const ListProductsResponse = zod.object({
   "price": zod.number().describe('Retail price in UAH'),
   "oldPrice": zod.number().nullish().describe('Crossed-out price when on sale'),
   "inStock": zod.boolean(),
-  "stockQty": zod.number().int().nullish().describe('Units left on the supplier warehouse, when known'),
+  "stockQty": zod.number().int().nullish().describe('Guaranteed units on the supplier warehouse (lower bound when the supplier shows a range)'),
+  "stockQtyMax": zod.number().int().nullish().describe('Upper bound of the supplier stock range; equals stockQty when exact; null when unknown (e.g. \'over 100\')'),
   "isNew": zod.boolean(),
   "isFeatured": zod.boolean().optional(),
   "imageUrl": zod.string().nullable(),
@@ -96,7 +97,8 @@ export const GetProductResponse = zod.object({
   "price": zod.number().describe('Retail price in UAH'),
   "oldPrice": zod.number().nullish().describe('Crossed-out price when on sale'),
   "inStock": zod.boolean(),
-  "stockQty": zod.number().int().nullish().describe('Units left on the supplier warehouse, when known'),
+  "stockQty": zod.number().int().nullish().describe('Guaranteed units on the supplier warehouse (lower bound when the supplier shows a range)'),
+  "stockQtyMax": zod.number().int().nullish().describe('Upper bound of the supplier stock range; equals stockQty when exact; null when unknown (e.g. \'over 100\')'),
   "isNew": zod.boolean(),
   "isFeatured": zod.boolean().optional(),
   "imageUrl": zod.string().nullable(),
@@ -130,7 +132,8 @@ export const GetRelatedProductsResponseItem = zod.object({
   "price": zod.number().describe('Retail price in UAH'),
   "oldPrice": zod.number().nullish().describe('Crossed-out price when on sale'),
   "inStock": zod.boolean(),
-  "stockQty": zod.number().int().nullish().describe('Units left on the supplier warehouse, when known'),
+  "stockQty": zod.number().int().nullish().describe('Guaranteed units on the supplier warehouse (lower bound when the supplier shows a range)'),
+  "stockQtyMax": zod.number().int().nullish().describe('Upper bound of the supplier stock range; equals stockQty when exact; null when unknown (e.g. \'over 100\')'),
   "isNew": zod.boolean(),
   "isFeatured": zod.boolean().optional(),
   "imageUrl": zod.string().nullable(),
@@ -152,7 +155,8 @@ export const GetStorefrontHighlightsResponse = zod.object({
   "price": zod.number().describe('Retail price in UAH'),
   "oldPrice": zod.number().nullish().describe('Crossed-out price when on sale'),
   "inStock": zod.boolean(),
-  "stockQty": zod.number().int().nullish().describe('Units left on the supplier warehouse, when known'),
+  "stockQty": zod.number().int().nullish().describe('Guaranteed units on the supplier warehouse (lower bound when the supplier shows a range)'),
+  "stockQtyMax": zod.number().int().nullish().describe('Upper bound of the supplier stock range; equals stockQty when exact; null when unknown (e.g. \'over 100\')'),
   "isNew": zod.boolean(),
   "isFeatured": zod.boolean().optional(),
   "imageUrl": zod.string().nullable(),
@@ -167,7 +171,8 @@ export const GetStorefrontHighlightsResponse = zod.object({
   "price": zod.number().describe('Retail price in UAH'),
   "oldPrice": zod.number().nullish().describe('Crossed-out price when on sale'),
   "inStock": zod.boolean(),
-  "stockQty": zod.number().int().nullish().describe('Units left on the supplier warehouse, when known'),
+  "stockQty": zod.number().int().nullish().describe('Guaranteed units on the supplier warehouse (lower bound when the supplier shows a range)'),
+  "stockQtyMax": zod.number().int().nullish().describe('Upper bound of the supplier stock range; equals stockQty when exact; null when unknown (e.g. \'over 100\')'),
   "isNew": zod.boolean(),
   "isFeatured": zod.boolean().optional(),
   "imageUrl": zod.string().nullable(),
@@ -182,7 +187,8 @@ export const GetStorefrontHighlightsResponse = zod.object({
   "price": zod.number().describe('Retail price in UAH'),
   "oldPrice": zod.number().nullish().describe('Crossed-out price when on sale'),
   "inStock": zod.boolean(),
-  "stockQty": zod.number().int().nullish().describe('Units left on the supplier warehouse, when known'),
+  "stockQty": zod.number().int().nullish().describe('Guaranteed units on the supplier warehouse (lower bound when the supplier shows a range)'),
+  "stockQtyMax": zod.number().int().nullish().describe('Upper bound of the supplier stock range; equals stockQty when exact; null when unknown (e.g. \'over 100\')'),
   "isNew": zod.boolean(),
   "isFeatured": zod.boolean().optional(),
   "imageUrl": zod.string().nullable(),
@@ -574,7 +580,8 @@ export const ListAdminProductsResponse = zod.object({
   "price": zod.number().describe('Retail price in UAH'),
   "oldPrice": zod.number().nullish().describe('Crossed-out price when on sale'),
   "inStock": zod.boolean(),
-  "stockQty": zod.number().int().nullish().describe('Units left on the supplier warehouse, when known'),
+  "stockQty": zod.number().int().nullish().describe('Guaranteed units on the supplier warehouse (lower bound when the supplier shows a range)'),
+  "stockQtyMax": zod.number().int().nullish().describe('Upper bound of the supplier stock range; equals stockQty when exact; null when unknown (e.g. \'over 100\')'),
   "isNew": zod.boolean(),
   "isFeatured": zod.boolean().optional(),
   "imageUrl": zod.string().nullable(),
@@ -591,7 +598,8 @@ export const ListAdminProductsResponse = zod.object({
   "lastSeenAt": zod.coerce.date().nullable(),
   "profitPerUnit": zod.number().nullish().describe('Retail minus purchase price'),
   "stockValue": zod.number().nullish().describe('Retail price times units in stock'),
-  "stockProfit": zod.number().nullish().describe('Profit if the whole stock is sold'),
+  "stockProfit": zod.number().nullish().describe('Profit if the guaranteed stock is sold'),
+  "stockProfitMax": zod.number().nullish().describe('Profit if the stock is at the top of the supplier range'),
   "seoTitle": zod.string().nullish()
 }))),
   "total": zod.number().int(),
@@ -603,21 +611,39 @@ export const ListAdminProductsResponse = zod.object({
 /**
  * @summary Stock value and potential profit for the products matching the filter
  */
+export const getAdminProductsSummaryQueryWhatIfMarkupMin = 0;
+export const getAdminProductsSummaryQueryWhatIfMarkupMax = 500;
+
+
+
 export const GetAdminProductsSummaryQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
   "categoryId": zod.coerce.number().int().optional(),
-  "stock": zod.enum(['all', 'in_stock', 'out_of_stock', 'hidden']).optional()
+  "stock": zod.enum(['all', 'in_stock', 'out_of_stock', 'hidden']).optional(),
+  "whatIfMarkup": zod.coerce.number().min(getAdminProductsSummaryQueryWhatIfMarkupMin).max(getAdminProductsSummaryQueryWhatIfMarkupMax).optional().describe('Also compute revenue and profit as if the store markup were this percent')
 })
 
 export const GetAdminProductsSummaryResponse = zod.object({
   "positions": zod.number().int().describe('Products matching the filter'),
   "positionsWithStock": zod.number().int().describe('Of them sellable with known stock'),
-  "unitsInStock": zod.number().int(),
+  "unitsInStock": zod.number().int().describe('Guaranteed units (lower bound of supplier ranges)'),
   "costValue": zod.number().describe('Purchase cost of all units in stock'),
   "retailValue": zod.number().describe('Revenue if every unit is sold at current prices'),
   "profit": zod.number(),
+  "unitsMax": zod.number().int().describe('Units at the top of the supplier ranges'),
+  "costValueMax": zod.number(),
+  "retailValueMax": zod.number(),
+  "profitMax": zod.number(),
+  "exactPositions": zod.number().int().describe('Sellable positions whose quantity is known exactly'),
   "marginPercent": zod.number().describe('Profit as percent of revenue'),
-  "markupPercent": zod.number().describe('Current store markup')
+  "markupPercent": zod.number().describe('Current store markup'),
+  "whatIf": zod.union([zod.object({
+  "markupPercent": zod.number(),
+  "retailValue": zod.number().describe('Revenue for guaranteed units at the hypothetical markup (rounding and manual prices applied)'),
+  "profit": zod.number(),
+  "retailValueMax": zod.number(),
+  "profitMax": zod.number()
+}),zod.null()]).optional()
 })
 
 
@@ -644,10 +670,15 @@ export const BulkUpdateAdminProductsResponse = zod.object({
  */
 export const GetAdminInventoryResponse = zod.object({
   "positionsInStock": zod.number().int(),
-  "unitsInStock": zod.number().int(),
+  "unitsInStock": zod.number().int().describe('Guaranteed units'),
   "costValue": zod.number(),
   "retailValue": zod.number(),
   "profit": zod.number(),
+  "unitsMax": zod.number().int(),
+  "costValueMax": zod.number(),
+  "retailValueMax": zod.number(),
+  "profitMax": zod.number(),
+  "exactPositions": zod.number().int(),
   "marginPercent": zod.number(),
   "markupPercent": zod.number(),
   "categories": zod.array(zod.object({
@@ -657,7 +688,10 @@ export const GetAdminInventoryResponse = zod.object({
   "units": zod.number().int(),
   "costValue": zod.number(),
   "retailValue": zod.number(),
-  "profit": zod.number()
+  "profit": zod.number(),
+  "unitsMax": zod.number().int(),
+  "retailValueMax": zod.number(),
+  "profitMax": zod.number()
 })),
   "lowStockBestsellers": zod.array(zod.object({
   "id": zod.number().int(),
@@ -666,7 +700,8 @@ export const GetAdminInventoryResponse = zod.object({
   "price": zod.number().describe('Retail price in UAH'),
   "oldPrice": zod.number().nullish().describe('Crossed-out price when on sale'),
   "inStock": zod.boolean(),
-  "stockQty": zod.number().int().nullish().describe('Units left on the supplier warehouse, when known'),
+  "stockQty": zod.number().int().nullish().describe('Guaranteed units on the supplier warehouse (lower bound when the supplier shows a range)'),
+  "stockQtyMax": zod.number().int().nullish().describe('Upper bound of the supplier stock range; equals stockQty when exact; null when unknown (e.g. \'over 100\')'),
   "isNew": zod.boolean(),
   "isFeatured": zod.boolean().optional(),
   "imageUrl": zod.string().nullable(),
@@ -683,7 +718,8 @@ export const GetAdminInventoryResponse = zod.object({
   "lastSeenAt": zod.coerce.date().nullable(),
   "profitPerUnit": zod.number().nullish().describe('Retail minus purchase price'),
   "stockValue": zod.number().nullish().describe('Retail price times units in stock'),
-  "stockProfit": zod.number().nullish().describe('Profit if the whole stock is sold'),
+  "stockProfit": zod.number().nullish().describe('Profit if the guaranteed stock is sold'),
+  "stockProfitMax": zod.number().nullish().describe('Profit if the stock is at the top of the supplier range'),
   "seoTitle": zod.string().nullish()
 })))
 })
@@ -818,7 +854,8 @@ export const UpdateAdminProductResponse = zod.object({
   "price": zod.number().describe('Retail price in UAH'),
   "oldPrice": zod.number().nullish().describe('Crossed-out price when on sale'),
   "inStock": zod.boolean(),
-  "stockQty": zod.number().int().nullish().describe('Units left on the supplier warehouse, when known'),
+  "stockQty": zod.number().int().nullish().describe('Guaranteed units on the supplier warehouse (lower bound when the supplier shows a range)'),
+  "stockQtyMax": zod.number().int().nullish().describe('Upper bound of the supplier stock range; equals stockQty when exact; null when unknown (e.g. \'over 100\')'),
   "isNew": zod.boolean(),
   "isFeatured": zod.boolean().optional(),
   "imageUrl": zod.string().nullable(),
@@ -835,7 +872,8 @@ export const UpdateAdminProductResponse = zod.object({
   "lastSeenAt": zod.coerce.date().nullable(),
   "profitPerUnit": zod.number().nullish().describe('Retail minus purchase price'),
   "stockValue": zod.number().nullish().describe('Retail price times units in stock'),
-  "stockProfit": zod.number().nullish().describe('Profit if the whole stock is sold'),
+  "stockProfit": zod.number().nullish().describe('Profit if the guaranteed stock is sold'),
+  "stockProfitMax": zod.number().nullish().describe('Profit if the stock is at the top of the supplier range'),
   "seoTitle": zod.string().nullish()
 }))
 

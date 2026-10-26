@@ -8,7 +8,7 @@ import {
   ordersTable,
   orderItemsTable,
 } from "@workspace/db";
-import { and, desc, eq, gte, inArray, lt, gt, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lt, gt, sql, type SQL } from "drizzle-orm";
 import {
   GetAdminProductsSummaryQueryParams,
   BulkUpdateAdminProductsBody,
@@ -19,7 +19,7 @@ import {
 } from "@workspace/api-zod";
 import { requireAdmin } from "../middlewares/auth";
 import { getSettings, retailPrice, retailPriceSql } from "../lib/settings";
-import { adminProductFilter } from "../lib/admin-filters";
+import { adminProductFilter, qtyMaxSql, qtyMinSql } from "../lib/admin-filters";
 import { toAdminProduct } from "../lib/serialize";
 import { SEO_PLACEHOLDERS, isSeoRunning, runSeo } from "../lib/seo";
 
@@ -28,32 +28,41 @@ router.use("/admin", requireAdmin);
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-/** Units and money for sellable products; unknown stock counts as zero units. */
-async function moneyTotals(where: ReturnType<typeof sql> | undefined) {
+/** Stock money for products a customer can buy: guaranteed (min) and top-of-range (max) figures. */
+async function moneyTotals(where: SQL | undefined) {
   const s = await getSettings();
   const price = retailPriceSql(s);
-  const qty = sql`(case when products.in_stock and products.is_active and coalesce(products.price_override, products.supplier_price, 0) > 0
-    then coalesce(products.stock_qty, 0) else 0 end)`;
   const [row] = await db
     .select({
       positions: sql<number>`count(*)::int`,
-      positionsWithStock: sql<number>`(count(*) filter (where ${qty} > 0))::int`,
-      units: sql<number>`coalesce(sum(${qty}), 0)::int`,
-      cost: sql<number>`coalesce(sum(${qty} * coalesce(products.supplier_price, 0)), 0)::float8`,
-      retail: sql<number>`coalesce(sum(${qty} * ${price}), 0)::float8`,
+      positionsWithStock: sql<number>`(count(*) filter (where ${qtyMinSql} > 0))::int`,
+      exactPositions: sql<number>`(count(*) filter (where ${qtyMinSql} > 0 and products.stock_qty_max = products.stock_qty))::int`,
+      units: sql<number>`coalesce(sum(${qtyMinSql}), 0)::int`,
+      unitsMax: sql<number>`coalesce(sum(${qtyMaxSql}), 0)::int`,
+      cost: sql<number>`coalesce(sum(${qtyMinSql} * coalesce(products.supplier_price, 0)), 0)::float8`,
+      costMax: sql<number>`coalesce(sum(${qtyMaxSql} * coalesce(products.supplier_price, 0)), 0)::float8`,
+      retail: sql<number>`coalesce(sum(${qtyMinSql} * ${price}), 0)::float8`,
+      retailMax: sql<number>`coalesce(sum(${qtyMaxSql} * ${price}), 0)::float8`,
     })
     .from(productsTable)
     .where(where);
   const cost = round2(row?.cost ?? 0);
   const retail = round2(row?.retail ?? 0);
+  const costMax = round2(row?.costMax ?? 0);
+  const retailMax = round2(row?.retailMax ?? 0);
   const profit = round2(retail - cost);
   return {
     positions: row?.positions ?? 0,
     positionsWithStock: row?.positionsWithStock ?? 0,
+    exactPositions: row?.exactPositions ?? 0,
     unitsInStock: row?.units ?? 0,
     costValue: cost,
     retailValue: retail,
     profit,
+    unitsMax: row?.unitsMax ?? 0,
+    costValueMax: costMax,
+    retailValueMax: retailMax,
+    profitMax: round2(retailMax - costMax),
     marginPercent: retail > 0 ? round2((profit / retail) * 100) : 0,
     markupPercent: Number(s.markupPercent),
   };
@@ -65,7 +74,30 @@ router.get("/admin/products/summary", async (req, res) => {
     res.status(400).json({ error: "Невірні параметри" });
     return;
   }
-  res.json(await moneyTotals(await adminProductFilter(parsed.data)));
+  const where = await adminProductFilter(parsed.data);
+  const totals = await moneyTotals(where);
+  let whatIf = null;
+  if (parsed.data.whatIfMarkup !== undefined) {
+    const s = await getSettings();
+    const price = retailPriceSql({ markupPercent: parsed.data.whatIfMarkup, roundPrices: s.roundPrices });
+    const [row] = await db
+      .select({
+        retail: sql<number>`coalesce(sum(${qtyMinSql} * ${price}), 0)::float8`,
+        retailMax: sql<number>`coalesce(sum(${qtyMaxSql} * ${price}), 0)::float8`,
+      })
+      .from(productsTable)
+      .where(where);
+    const retail = round2(row?.retail ?? 0);
+    const retailMax = round2(row?.retailMax ?? 0);
+    whatIf = {
+      markupPercent: parsed.data.whatIfMarkup,
+      retailValue: retail,
+      profit: round2(retail - totals.costValue),
+      retailValueMax: retailMax,
+      profitMax: round2(retailMax - totals.costValueMax),
+    };
+  }
+  res.json({ ...totals, whatIf });
 });
 
 router.post("/admin/products/bulk", async (req, res) => {
@@ -111,19 +143,27 @@ router.post("/admin/products/bulk", async (req, res) => {
 router.get("/admin/inventory", async (_req, res) => {
   const s = await getSettings();
   const price = retailPriceSql(s);
-  const qty = sql`(case when products.in_stock and products.is_active and coalesce(products.price_override, products.supplier_price, 0) > 0
-    then coalesce(products.stock_qty, 0) else 0 end)`;
-  const enabled = sql`products.source_cat_id in (select supplier_cat_id from sync_sources where enabled)`;
   const [totals, byCat, lowStock, cats] = await Promise.all([
-    moneyTotals(enabled),
-    db.execute<{ category_id: number; positions: number; units: number; cost: number; retail: number }>(sql`
+    moneyTotals(undefined),
+    db.execute<{
+      category_id: number;
+      positions: number;
+      units: number;
+      units_max: number;
+      cost: number;
+      retail: number;
+      cost_max: number;
+      retail_max: number;
+    }>(sql`
       select coalesce(c.parent_id, c.id) as category_id,
-        (count(*) filter (where ${qty} > 0))::int as positions,
-        coalesce(sum(${qty}), 0)::int as units,
-        coalesce(sum(${qty} * coalesce(products.supplier_price, 0)), 0)::float8 as cost,
-        coalesce(sum(${qty} * ${price}), 0)::float8 as retail
+        (count(*) filter (where ${qtyMinSql} > 0))::int as positions,
+        coalesce(sum(${qtyMinSql}), 0)::int as units,
+        coalesce(sum(${qtyMaxSql}), 0)::int as units_max,
+        coalesce(sum(${qtyMinSql} * coalesce(products.supplier_price, 0)), 0)::float8 as cost,
+        coalesce(sum(${qtyMinSql} * ${price}), 0)::float8 as retail,
+        coalesce(sum(${qtyMaxSql} * coalesce(products.supplier_price, 0)), 0)::float8 as cost_max,
+        coalesce(sum(${qtyMaxSql} * ${price}), 0)::float8 as retail_max
       from products join categories c on c.id = products.category_id
-      where ${enabled}
       group by 1 order by retail desc`),
     db
       .select()
@@ -132,7 +172,7 @@ router.get("/admin/inventory", async (_req, res) => {
         and(
           eq(productsTable.isActive, true),
           gt(productsTable.salesCount, 0),
-          sql`coalesce(${productsTable.stockQty}, 0) <= 3`,
+          sql`(not ${productsTable.inStock} or coalesce(${productsTable.stockQty}, 0) <= 3)`,
         ),
       )
       .orderBy(desc(productsTable.salesCount))
@@ -146,6 +186,11 @@ router.get("/admin/inventory", async (_req, res) => {
     costValue: totals.costValue,
     retailValue: totals.retailValue,
     profit: totals.profit,
+    unitsMax: totals.unitsMax,
+    costValueMax: totals.costValueMax,
+    retailValueMax: totals.retailValueMax,
+    profitMax: totals.profitMax,
+    exactPositions: totals.exactPositions,
     marginPercent: totals.marginPercent,
     markupPercent: totals.markupPercent,
     categories: byCat.rows
@@ -158,6 +203,9 @@ router.get("/admin/inventory", async (_req, res) => {
         costValue: round2(r.cost),
         retailValue: round2(r.retail),
         profit: round2(r.retail - r.cost),
+        unitsMax: r.units_max,
+        retailValueMax: round2(r.retail_max),
+        profitMax: round2(r.retail_max - r.cost_max),
       })),
     lowStockBestsellers: lowStock.map((p) =>
       toAdminProduct(p, s, p.categoryId ? (catMap.get(p.categoryId) ?? null) : null),
@@ -342,7 +390,7 @@ router.get("/admin/export/products.csv", async (req, res) => {
   sendCsv(
     res,
     `tovary-${new Date().toISOString().slice(0, 10)}.csv`,
-    ["Код", "Артикул", "Назва", "Категорія", "Закупка", "Ціна продажу", "Прибуток з шт", "Залишок", "Прибуток з залишку", "В наявності", "Показується", "Продано", "Посилання постачальника"],
+    ["Код", "Артикул", "Назва", "Категорія", "Закупка", "Ціна продажу", "Прибуток з шт", "Залишок (гарантовано)", "Залишок (до)", "Прибуток з залишку (гарантовано)", "Прибуток з залишку (до)", "В наявності", "Показується", "Продано", "Посилання постачальника"],
     rows.map((p) => {
       const a = toAdminProduct(p, s, p.categoryId ? (catMap.get(p.categoryId) ?? null) : null);
       return [
@@ -354,7 +402,9 @@ router.get("/admin/export/products.csv", async (req, res) => {
         a.price || null,
         a.profitPerUnit,
         p.inStock ? p.stockQty : 0,
+        p.inStock ? (p.stockQtyMax ?? (p.stockQty !== null ? `понад ${p.stockQty}` : null)) : 0,
         a.stockProfit,
+        a.stockProfitMax,
         p.inStock ? "так" : "ні",
         p.isActive ? "так" : "ні",
         p.salesCount,

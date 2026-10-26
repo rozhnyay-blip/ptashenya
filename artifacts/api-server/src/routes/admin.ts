@@ -25,7 +25,7 @@ import {
 } from "@workspace/api-zod";
 import { requireAdmin } from "../middlewares/auth";
 import { getSettings, retailPriceSql } from "../lib/settings";
-import { adminProductFilter } from "../lib/admin-filters";
+import { adminProductFilter, sellableSql } from "../lib/admin-filters";
 import { hasSupplierCredentials } from "../lib/supplier";
 import { toAdminProduct, toOrder, toOrderDetail, toSyncRun } from "../lib/serialize";
 import {
@@ -98,7 +98,7 @@ router.get("/admin/dashboard", async (_req, res) => {
       no_price: number;
     }>(sql`
     select count(*)::int as total,
-      (count(*) filter (where in_stock and is_active))::int as in_stock,
+      (count(*) filter (where ${sellableSql}))::int as in_stock,
       (count(*) filter (where not in_stock))::int as out_of_stock,
       (count(*) filter (where not is_active))::int as hidden,
       (count(*) filter (where in_stock and coalesce(price_override, supplier_price, 0) <= 0))::int as no_price,
@@ -363,6 +363,16 @@ router.patch("/admin/orders/:id", async (req, res) => {
     await db
       .insert(orderEventsTable)
       .values({ orderId: existing.id, type: "order_status", status: patch.status });
+    // Sales counters only count orders that are not cancelled.
+    const delta =
+      patch.status === "cancelled" ? -1 : existing.status === "cancelled" ? 1 : 0;
+    if (delta !== 0) {
+      await db.execute(sql`
+        update products set sales_count = greatest(0, products.sales_count + ${delta} * oi.qty)
+        from (select product_id, sum(quantity)::int as qty from order_items
+              where order_id = ${existing.id} and product_id is not null group by product_id) oi
+        where products.id = oi.product_id`);
+    }
   }
   res.json(await orderDetail(existing.id));
 });

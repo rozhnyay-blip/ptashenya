@@ -10,10 +10,16 @@ import type { InventoryCategory } from './inventoryCategory';
 
 export interface InventoryReport {
   positionsInStock: number;
+  /** Guaranteed units */
   unitsInStock: number;
   costValue: number;
   retailValue: number;
   profit: number;
+  unitsMax: number;
+  costValueMax: number;
+  retailValueMax: number;
+  profitMax: number;
+  exactPositions: number;
   marginPercent: number;
   markupPercent: number;
   categories: InventoryCategory[];

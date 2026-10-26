@@ -14,4 +14,7 @@ export interface InventoryCategory {
   costValue: number;
   retailValue: number;
   profit: number;
+  unitsMax: number;
+  retailValueMax: number;
+  profitMax: number;
 }

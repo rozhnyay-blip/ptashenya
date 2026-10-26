@@ -5,20 +5,30 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { WhatIfMoney } from './whatIfMoney';
 
 export interface ProductsSummary {
   /** Products matching the filter */
   positions: number;
   /** Of them sellable with known stock */
   positionsWithStock: number;
+  /** Guaranteed units (lower bound of supplier ranges) */
   unitsInStock: number;
   /** Purchase cost of all units in stock */
   costValue: number;
   /** Revenue if every unit is sold at current prices */
   retailValue: number;
   profit: number;
+  /** Units at the top of the supplier ranges */
+  unitsMax: number;
+  costValueMax: number;
+  retailValueMax: number;
+  profitMax: number;
+  /** Sellable positions whose quantity is known exactly */
+  exactPositions: number;
   /** Profit as percent of revenue */
   marginPercent: number;
   /** Current store markup */
   markupPercent: number;
+  whatIf?: WhatIfMoney | null;
 }

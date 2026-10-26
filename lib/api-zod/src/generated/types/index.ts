@@ -67,3 +67,4 @@ export * from './syncSource';
 export * from './syncSourcesInput';
 export * from './syncStatus';
 export * from './topProduct';
+export * from './whatIfMoney';

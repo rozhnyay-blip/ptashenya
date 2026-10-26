@@ -44,10 +44,15 @@ export interface Product {
   oldPrice?: number | null;
   inStock: boolean;
   /**
-     * Units left on the supplier warehouse, when known
+     * Guaranteed units on the supplier warehouse (lower bound when the supplier shows a range)
      * @nullable
      */
   stockQty?: number | null;
+  /**
+     * Upper bound of the supplier stock range; equals stockQty when exact; null when unknown (e.g. 'over 100')
+     * @nullable
+     */
+  stockQtyMax?: number | null;
   isNew: boolean;
   isFeatured?: boolean;
   /** @nullable */
@@ -358,10 +363,15 @@ export type AdminProduct = Product & ({
      */
   stockValue?: number | null;
   /**
-     * Profit if the whole stock is sold
+     * Profit if the guaranteed stock is sold
      * @nullable
      */
   stockProfit?: number | null;
+  /**
+     * Profit if the stock is at the top of the supplier range
+     * @nullable
+     */
+  stockProfitMax?: number | null;
   /** @nullable */
   seoTitle?: string | null;
 });
@@ -447,21 +457,39 @@ export interface SyncSourcesInput {
   enabledIds: string[];
 }
 
+export interface WhatIfMoney {
+  markupPercent: number;
+  /** Revenue for guaranteed units at the hypothetical markup (rounding and manual prices applied) */
+  retailValue: number;
+  profit: number;
+  retailValueMax: number;
+  profitMax: number;
+}
+
 export interface ProductsSummary {
   /** Products matching the filter */
   positions: number;
   /** Of them sellable with known stock */
   positionsWithStock: number;
+  /** Guaranteed units (lower bound of supplier ranges) */
   unitsInStock: number;
   /** Purchase cost of all units in stock */
   costValue: number;
   /** Revenue if every unit is sold at current prices */
   retailValue: number;
   profit: number;
+  /** Units at the top of the supplier ranges */
+  unitsMax: number;
+  costValueMax: number;
+  retailValueMax: number;
+  profitMax: number;
+  /** Sellable positions whose quantity is known exactly */
+  exactPositions: number;
   /** Profit as percent of revenue */
   marginPercent: number;
   /** Current store markup */
   markupPercent: number;
+  whatIf?: WhatIfMoney | null;
 }
 
 export type BulkProductActionAction = typeof BulkProductActionAction[keyof typeof BulkProductActionAction];
@@ -499,14 +527,23 @@ export interface InventoryCategory {
   costValue: number;
   retailValue: number;
   profit: number;
+  unitsMax: number;
+  retailValueMax: number;
+  profitMax: number;
 }
 
 export interface InventoryReport {
   positionsInStock: number;
+  /** Guaranteed units */
   unitsInStock: number;
   costValue: number;
   retailValue: number;
   profit: number;
+  unitsMax: number;
+  costValueMax: number;
+  retailValueMax: number;
+  profitMax: number;
+  exactPositions: number;
   marginPercent: number;
   markupPercent: number;
   categories: InventoryCategory[];
@@ -691,6 +728,12 @@ export type GetAdminProductsSummaryParams = {
 search?: string;
 categoryId?: number;
 stock?: GetAdminProductsSummaryStock;
+/**
+ * Also compute revenue and profit as if the store markup were this percent
+ * @minimum 0
+ * @maximum 500
+ */
+whatIfMarkup?: number;
 };
 
 export type GetAdminProductsSummaryStock = typeof GetAdminProductsSummaryStock[keyof typeof GetAdminProductsSummaryStock];

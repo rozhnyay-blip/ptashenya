@@ -23,6 +23,7 @@ export function toProduct(
     oldPrice: old !== null && old > price ? old : null,
     inStock: p.inStock,
     stockQty: p.stockQty,
+    stockQtyMax: p.stockQtyMax,
     isNew: p.isNew,
     isFeatured: p.isFeatured,
     imageUrl: p.imageUrl,
@@ -41,11 +42,13 @@ export function toAdminProduct(
   const round2 = (n: number) => Math.round(n * 100) / 100;
   const profitPerUnit = p.supplierPrice !== null && base.price > 0 ? round2(base.price - p.supplierPrice) : null;
   const qty = p.inStock ? (p.stockQty ?? null) : 0;
+  const qtyMax = p.inStock ? (p.stockQtyMax ?? p.stockQty ?? null) : 0;
   return {
     ...base,
     profitPerUnit,
     stockValue: qty !== null && base.price > 0 ? round2(base.price * qty) : null,
     stockProfit: qty !== null && profitPerUnit !== null ? round2(profitPerUnit * qty) : null,
+    stockProfitMax: qtyMax !== null && profitPerUnit !== null ? round2(profitPerUnit * qtyMax) : null,
     seoTitle: p.seoTitle,
     supplierPrice: p.supplierPrice,
     priceOverride: p.priceOverride,

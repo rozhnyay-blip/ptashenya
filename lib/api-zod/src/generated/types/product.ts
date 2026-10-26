@@ -20,10 +20,15 @@ export interface Product {
   oldPrice?: number | null;
   inStock: boolean;
   /**
-     * Units left on the supplier warehouse, when known
+     * Guaranteed units on the supplier warehouse (lower bound when the supplier shows a range)
      * @nullable
      */
   stockQty?: number | null;
+  /**
+     * Upper bound of the supplier stock range; equals stockQty when exact; null when unknown (e.g. 'over 100')
+     * @nullable
+     */
+  stockQtyMax?: number | null;
   isNew: boolean;
   isFeatured?: boolean;
   /** @nullable */

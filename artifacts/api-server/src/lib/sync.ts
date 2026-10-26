@@ -21,6 +21,7 @@ import {
   parseCategoryTree,
   supplierLogin,
   parseListing,
+  parseProductStock,
   type ListedProduct,
   type SupplierGroup,
 } from "./supplier";
@@ -105,6 +106,8 @@ class RunState {
   wentOutOfStock = 0;
   currentStep = "";
   seenSkus = new Set<string>();
+  /** SKUs the listing showed as an open range ("понад 100") — exact count needs the product page. */
+  openRangeSkus = new Set<string>();
   failedCategoryIds = new Set<number>();
   lastFlush = 0;
   constructor(public runId: number) {}
@@ -134,6 +137,7 @@ async function saveProducts(state: RunState, target: CrawlTarget, items: ListedP
   for (const p of items) {
     if (state.seenSkus.has(p.sku)) continue;
     state.seenSkus.add(p.sku);
+    if (p.stockQty !== null && p.stockQty > 0 && p.stockQtyMax === null) state.openRangeSkus.add(p.sku);
     fresh.push(p);
   }
   if (fresh.length === 0) return;
@@ -172,6 +176,7 @@ async function saveProducts(state: RunState, target: CrawlTarget, items: ListedP
         supplierPrice: p.price,
         supplierOldPrice: p.oldPrice,
         stockQty: p.stockQty,
+        stockQtyMax: p.stockQtyMax,
         categoryId: target.categoryId,
         sourceCatId: target.sourceCatId,
         isNew: p.isNew,
@@ -191,7 +196,13 @@ async function saveProducts(state: RunState, target: CrawlTarget, items: ListedP
         image2Url: sql`excluded.image2_url`,
         supplierPrice: sql`coalesce(excluded.supplier_price, products.supplier_price)`,
         supplierOldPrice: sql`excluded.supplier_old_price`,
-        stockQty: sql`excluded.stock_qty`,
+        // "понад 100" on the listing: keep yesterday's exact count (above the bound) until the product page refines it.
+        stockQty: sql`case when excluded.stock_qty_max is null and excluded.stock_qty is not null
+          and products.stock_qty_max = products.stock_qty and products.stock_qty > excluded.stock_qty
+          then products.stock_qty else excluded.stock_qty end`,
+        stockQtyMax: sql`case when excluded.stock_qty_max is null and excluded.stock_qty is not null
+          and products.stock_qty_max = products.stock_qty and products.stock_qty > excluded.stock_qty
+          then products.stock_qty_max else excluded.stock_qty_max end`,
         categoryId: sql`excluded.category_id`,
         sourceCatId: sql`excluded.source_cat_id`,
         isNew: sql`excluded.is_new`,
@@ -232,6 +243,82 @@ async function pool<T>(items: T[], worker: (item: T) => Promise<void>) {
     }
   });
   await Promise.all(runners);
+}
+
+const REFINE_CONCURRENCY = 3;
+const REFINE_BUDGET_MS = 30 * 60_000;
+
+/**
+ * Listings cap big stocks at "понад 100"; the product page carries the exact count.
+ * Refines every in-stock product whose upper bound is unknown plus those the listing just showed as open-ended.
+ */
+export async function refineOpenRanges(state?: RunState) {
+  const skus = state ? [...state.openRangeSkus] : [];
+  const rows = await db
+    .select({ id: productsTable.id, sku: productsTable.sku, url: productsTable.supplierUrl })
+    .from(productsTable)
+    .where(
+      and(
+        eq(productsTable.inStock, true),
+        skus.length > 0
+          ? or(isNull(productsTable.stockQtyMax), inArray(productsTable.sku, skus))
+          : isNull(productsTable.stockQtyMax),
+        sql`${productsTable.stockQty} > 0`,
+      ),
+    );
+  if (rows.length === 0) return;
+  const started = Date.now();
+  let done = 0;
+  let refined = 0;
+  let failed = 0;
+  let unparsed = 0;
+  const setStep = async (force = false) => {
+    if (!state) return;
+    state.currentStep = `Уточнюю точні залишки (понад 100 шт.): ${done} з ${rows.length}`;
+    await state.flush(force);
+  };
+  await setStep(true);
+  let index = 0;
+  let relogin: Promise<boolean> | null = null;
+  const worker = async () => {
+    while (index < rows.length && Date.now() - started < REFINE_BUDGET_MS) {
+      const row = rows[index++]!;
+      const path = row.url.replace(/^https?:\/\/[^/]+/, "");
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          let html = await fetchHtml(path, 20000, 0);
+          let stock = parseProductStock(html);
+          if (!stock && html.includes("/register/?back_product=")) {
+            // The wholesale session dropped mid-run (guest page has no stock): log in again once and retry.
+            relogin ??= supplierLogin().finally(() => setTimeout(() => (relogin = null), 30_000));
+            await relogin;
+            html = await fetchHtml(path, 20000, 0);
+            stock = parseProductStock(html);
+          }
+          if (stock && stock.max !== null) {
+            await db
+              .update(productsTable)
+              .set({ stockQty: stock.min, stockQtyMax: stock.max, inStock: stock.min > 0 })
+              .where(eq(productsTable.id, row.id));
+            refined++;
+          } else unparsed++;
+          break;
+        } catch (err) {
+          if (attempt === 2) {
+            failed++;
+            if (failed <= 5) logger.warn({ error: errorText(err), sku: row.sku }, "Sync: stock refine failed");
+          } else {
+            // The supplier throttles bursts; back off before retrying.
+            await new Promise((r) => setTimeout(r, 3000 * (attempt + 1)));
+          }
+        }
+      }
+      done++;
+      await setStep();
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(REFINE_CONCURRENCY, rows.length) }, worker));
+  logger.info({ total: rows.length, refined, failed, unparsed, ms: Date.now() - started }, "Sync: open-range stock refined");
 }
 
 async function executeRun(runId: number, runStart: Date) {
@@ -330,6 +417,9 @@ async function executeRun(runId: number, runStart: Date) {
       .returning({ id: productsTable.id });
     state.wentOutOfStock += gone.length;
   }
+
+  // Phase 4: listings cap big stocks at "понад 100"; the product page has the exact count.
+  await refineOpenRanges(state);
 
   const settings = await getSettings();
   if (settings.seoAutoAfterSync) {

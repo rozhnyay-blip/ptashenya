@@ -1,2 +1,2 @@
-- [Supplier scraping](supplier-scraping.md) — priceless items are out of stock; login gives exact stock; parsing quirks for descriptions/photos
+- [Supplier scraping](supplier-scraping.md) — priceless = out of stock; stock shown as ranges (exact only small / product page); parsing quirks
 - [Running server code ad-hoc](dev-scripts.md) — tsx loader path and how to test admin routes without Clerk

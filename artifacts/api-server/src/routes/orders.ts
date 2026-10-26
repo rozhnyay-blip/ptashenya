@@ -53,6 +53,14 @@ router.post("/orders", async (req, res) => {
     return;
   }
 
+  const tooMany = products.filter((p) => p.stockQty !== null && qtyById.get(p.id)! > p.stockQty);
+  if (tooMany.length > 0) {
+    res.status(400).json({
+      error: tooMany.map((p) => `«${p.name}» — на складі лише ${p.stockQty} шт.`).join("; "),
+    });
+    return;
+  }
+
   const settings = await getSettings();
   const lines = products.map((p) => {
     const quantity = qtyById.get(p.id)!;

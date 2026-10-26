@@ -73,13 +73,13 @@ export default function ProductPage() {
           </div>
           <div className="mt-3">
             {p.inStock
-              ? <span className="inline-flex items-center gap-1.5 rounded-full bg-[hsl(160_45%_90%)] px-3 py-1 text-xs font-bold text-[hsl(165_55%_24%)]" data-testid="status-stock"><span className="h-1.5 w-1.5 rounded-full bg-current" />Є в наявності</span>
+              ? <span className="inline-flex items-center gap-1.5 rounded-full bg-[hsl(160_45%_90%)] px-3 py-1 text-xs font-bold text-[hsl(165_55%_24%)]" data-testid="status-stock"><span className="h-1.5 w-1.5 rounded-full bg-current" />{p.stockQty != null && p.stockQty <= 5 ? `Лишилось ${p.stockQty} шт.` : "Є в наявності"}</span>
               : <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-bold text-muted-foreground" data-testid="status-stock"><PackageX className="h-3.5 w-3.5" />Немає в наявності</span>}
           </div>
           {p.inStock && (
             <div className="mt-6 space-y-3">
               <div className="flex gap-3">
-                <QtyStepper size="lg" value={qty} onChange={(n) => setQty(Math.max(1, Math.min(999, n)))} />
+                <QtyStepper size="lg" value={qty} onChange={(n) => setQty(Math.max(1, Math.min(p.stockQty ?? 999, n)))} />
                 <button ref={btn} type="button" onClick={onAdd} data-testid="button-add-to-cart" className={cn("flex h-12 flex-1 items-center justify-center gap-2 rounded-full text-base font-bold transition active:scale-[.97]", added ? "bg-[hsl(165_55%_38%)] text-white" : "bg-foreground text-background hover:bg-foreground/90")}>
                   {added ? <><Check className="h-5 w-5" />Додано</> : <><ShoppingBag className="h-5 w-5" />У кошик</>}
                 </button>

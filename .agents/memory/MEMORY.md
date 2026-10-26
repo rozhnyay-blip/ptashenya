@@ -1,1 +1,1 @@
-- [Supplier scraping](supplier-scraping.md) — toysi.ua hides most prices from guests; parsing quirks for descriptions/photos
+- [Supplier scraping](supplier-scraping.md) — priceless items are out of stock; login gives exact stock; parsing quirks for descriptions/photos

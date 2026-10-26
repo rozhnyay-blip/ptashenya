@@ -498,6 +498,7 @@ components:
         price: { type: number, description: "Retail price in UAH" }
         oldPrice: { type: ["number", "null"], description: "Crossed-out price when on sale" }
         inStock: { type: boolean }
+        stockQty: { type: ["integer", "null"], description: "Units left on the supplier warehouse, when known" }
         isNew: { type: boolean }
         isFeatured: { type: boolean }
         imageUrl: { type: ["string", "null"] }

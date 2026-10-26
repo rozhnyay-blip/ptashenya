@@ -138,6 +138,7 @@ async function saveProducts(state: RunState, target: CrawlTarget, items: ListedP
   const existingMap = new Map(existing.map((e) => [e.sku, e.inStock]));
 
   const now = new Date();
+  const available = (p: ListedProduct) => (p.stockQty === null ? p.price !== null : p.stockQty > 0);
   await db
     .insert(productsTable)
     .values(
@@ -145,14 +146,17 @@ async function saveProducts(state: RunState, target: CrawlTarget, items: ListedP
         sku: p.sku,
         supplierProductId: p.supplierProductId,
         name: p.name,
+        article: p.article,
         supplierUrl: absUrl(p.path),
         imageUrl: p.imageUrl,
         image2Url: p.image2Url,
         supplierPrice: p.price,
+        supplierOldPrice: p.oldPrice,
+        stockQty: p.stockQty,
         categoryId: target.categoryId,
         sourceCatId: target.sourceCatId,
         isNew: p.isNew,
-        inStock: true,
+        inStock: available(p),
         firstSeenAt: now,
         lastSeenAt: now,
       })),
@@ -162,24 +166,30 @@ async function saveProducts(state: RunState, target: CrawlTarget, items: ListedP
       set: {
         supplierProductId: sql`excluded.supplier_product_id`,
         name: sql`excluded.name`,
+        article: sql`coalesce(excluded.article, products.article)`,
         supplierUrl: sql`excluded.supplier_url`,
         imageUrl: sql`excluded.image_url`,
         image2Url: sql`excluded.image2_url`,
         supplierPrice: sql`coalesce(excluded.supplier_price, products.supplier_price)`,
+        supplierOldPrice: sql`excluded.supplier_old_price`,
+        stockQty: sql`excluded.stock_qty`,
         categoryId: sql`excluded.category_id`,
         sourceCatId: sql`excluded.source_cat_id`,
         isNew: sql`excluded.is_new`,
-        inStock: true,
+        inStock: sql`excluded.in_stock`,
         lastSeenAt: now,
       },
     });
 
   for (const p of fresh) {
     state.productsSeen++;
-    if (!existingMap.has(p.sku)) state.added++;
+    const was = existingMap.get(p.sku);
+    const nowAvailable = available(p);
+    if (was === undefined) state.added++;
     else {
       state.updated++;
-      if (existingMap.get(p.sku) === false) state.backInStock++;
+      if (was === false && nowAvailable) state.backInStock++;
+      if (was === true && !nowAvailable) state.wentOutOfStock++;
     }
   }
   void runStart;
@@ -290,7 +300,7 @@ async function executeRun(runId: number, runStart: Date) {
         ),
       )
       .returning({ id: productsTable.id });
-    state.wentOutOfStock = gone.length;
+    state.wentOutOfStock += gone.length;
   }
 
   state.currentStep =

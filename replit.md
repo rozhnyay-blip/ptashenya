@@ -46,8 +46,8 @@ Online baby-goods store (Ukrainian UI) that resells the warehouse stock of suppl
 
 ## Gotchas
 
-- toysi.ua shows most wholesale prices only to logged-in clients; as a guest only ~30% of items have a price. Login is POST /auth/ (enter=1, user_login in +38(0XX)XXX-XX-XX format, user_pw).
-- The price regex for logged-in listings is unverified until real credentials are added — check `products.supplier_price` fill rate after the first logged-in sync.
+- toysi.ua "-sklad" category listings include out-of-stock items. Logged in (TOYSI_PHONE/TOYSI_PASSWORD), each card shows exact stock ("На складі : N шт.") and price in `.price-sale`; out-of-stock items have no price. As a guest, "no price" is used as the out-of-stock signal. Login is POST /auth/ (enter=1, user_login as +38(0XX)XXX-XX-XX, user_pw).
+- Guest and logged-in listing markup differ (`div.product.product-req` vs `div.product`); the parser handles both.
 
 ## Pointers
 

@@ -19,6 +19,11 @@ export interface Product {
      */
   oldPrice?: number | null;
   inStock: boolean;
+  /**
+     * Units left on the supplier warehouse, when known
+     * @nullable
+     */
+  stockQty?: number | null;
   isNew: boolean;
   isFeatured?: boolean;
   /** @nullable */

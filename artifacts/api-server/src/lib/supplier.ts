@@ -37,6 +37,11 @@ export interface ListedProduct {
   imageUrl: string | null;
   image2Url: string | null;
   price: number | null;
+  /** Crossed-out regular price when the supplier runs a sale. */
+  oldPrice: number | null;
+  /** Units on the supplier warehouse; null when not visible (guest session). */
+  stockQty: number | null;
+  article: string | null;
   isNew: boolean;
 }
 
@@ -181,30 +186,56 @@ export function parseCategoryTree(html: string): SupplierGroup[] {
   return groups;
 }
 
+function parseMoney(text: string | undefined | null): number | null {
+  if (!text) return null;
+  const m = text.replace(/\s/g, "").match(/(\d+(?:[.,]\d+)?)/);
+  if (!m) return null;
+  const n = Number(m[1]!.replace(",", "."));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 export function parseListing(html: string): ListingPage {
   const root = parse(html);
   const products: ListedProduct[] = [];
-  for (const el of root.querySelectorAll("div.product.product-req")) {
+  for (const el of root.querySelectorAll("div.product")) {
     const link = el.querySelector(".product-container > a");
     const path = link?.getAttribute("href");
-    const codeText = el.querySelector(".description p")?.text ?? "";
-    const skuMatch = codeText.match(/(\d{3,})/);
+    const descText = el.querySelector(".description")?.text ?? "";
+    const skuMatch = descText.match(/Код товару:\s*(\d{3,})/);
     if (!path || !skuMatch) continue;
     const img = el.querySelector("img.product-photo");
     const imgSrc = img?.getAttribute("src") ?? null;
     const imgId = img?.getAttribute("id")?.replace(/^img/, "") ?? null;
     const photo2 = el.getAttribute("data-photo2")?.trim() || null;
-    const priceEl = el.querySelector(".Price_min_0 b");
-    const priceMatch = priceEl?.text.match(/=\s*([\d\s]+(?:[.,]\d+)?)/);
-    const price = priceMatch ? Number(priceMatch[1].replace(/\s/g, "").replace(",", ".")) : null;
+
+    // Logged-in wholesale view: explicit price block. Guest view: hidden discount table.
+    let price = parseMoney(el.querySelector(".price .price-sale")?.text);
+    if (price === null) {
+      const guest = el.querySelector(".Price_min_0 b")?.text.split("=")[1];
+      price = parseMoney(guest);
+    }
+    const oldPrice = parseMoney(el.querySelector(".price .price-regular del")?.text);
+
+    const stockEl = el.querySelector(".product-stock .stock");
+    let stockQty: number | null = null;
+    if (stockEl) {
+      const t = stockEl.text.replace(/<!--[\s\S]*?-->/g, "");
+      const n = t.match(/(\d+)/);
+      stockQty = n ? Number(n[1]) : 0;
+    }
+    const articleMatch = descText.match(/Артикул:\s*([^\n\r]+)/);
+
     products.push({
-      sku: skuMatch[1],
+      sku: skuMatch[1]!,
       supplierProductId: imgId,
       name: clean(el.querySelector("h3")?.text),
       path,
       imageUrl: imgSrc && !imgSrc.includes("no-photo") ? absUrl(imgSrc) : null,
       image2Url: photo2 && !photo2.includes("no-photo") ? absUrl(photo2) : null,
-      price: price !== null && Number.isFinite(price) && price > 0 ? price : null,
+      price,
+      oldPrice: oldPrice !== null && price !== null && oldPrice > price ? oldPrice : null,
+      stockQty,
+      article: articleMatch ? clean(articleMatch[1]) || null : null,
       isNew: !!el.querySelector(".corner.color_newitem"),
     });
   }

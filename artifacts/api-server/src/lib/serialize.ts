@@ -10,13 +10,19 @@ export function toProduct(
   s: Pick<SettingsRow, "markupPercent" | "roundPrices">,
   categoryName: string | null,
 ) {
+  const price = retailPrice(p.supplierPrice, p.priceOverride, s);
+  const old =
+    p.priceOverride === null && p.supplierOldPrice !== null
+      ? retailPrice(p.supplierOldPrice, null, s)
+      : null;
   return {
     id: p.id,
     sku: p.sku,
     name: p.name,
-    price: retailPrice(p.supplierPrice, p.priceOverride, s),
-    oldPrice: null,
+    price,
+    oldPrice: old !== null && old > price ? old : null,
     inStock: p.inStock,
+    stockQty: p.stockQty,
     isNew: p.isNew,
     isFeatured: p.isFeatured,
     imageUrl: p.imageUrl,

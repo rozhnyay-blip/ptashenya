@@ -100,7 +100,7 @@ router.get("/admin/dashboard", async (_req, res) => {
       (count(*) filter (where in_stock and is_active))::int as in_stock,
       (count(*) filter (where not in_stock))::int as out_of_stock,
       (count(*) filter (where not is_active))::int as hidden,
-      (count(*) filter (where coalesce(price_override, supplier_price, 0) <= 0))::int as no_price,
+      (count(*) filter (where in_stock and coalesce(price_override, supplier_price, 0) <= 0))::int as no_price,
       (count(*) filter (where first_seen_at >= date_trunc('day', now() at time zone 'Europe/Kyiv') at time zone 'Europe/Kyiv'))::int as new_today
     from products`)
   ).rows;

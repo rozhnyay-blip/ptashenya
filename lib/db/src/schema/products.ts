@@ -23,6 +23,8 @@ export const productsTable = pgTable(
     imageUrl: text("image_url"),
     image2Url: text("image2_url"),
     supplierPrice: numeric("supplier_price", { precision: 12, scale: 2, mode: "number" }),
+    supplierOldPrice: numeric("supplier_old_price", { precision: 12, scale: 2, mode: "number" }),
+    stockQty: integer("stock_qty"),
     priceOverride: numeric("price_override", { precision: 12, scale: 2, mode: "number" }),
     categoryId: integer("category_id"),
     sourceCatId: text("source_cat_id"),

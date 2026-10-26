@@ -19,7 +19,7 @@ import {
 } from "@workspace/api-zod";
 import { requireAdmin } from "../middlewares/auth";
 import { getSettings, retailPrice, retailPriceSql } from "../lib/settings";
-import { adminProductFilter, oneUnitSql } from "../lib/admin-filters";
+import { adminProductFilter, allUnitsSql, approxUnitsSql, oneUnitSql } from "../lib/admin-filters";
 import { toAdminProduct } from "../lib/serialize";
 import { SEO_PLACEHOLDERS, isSeoRunning, runSeo } from "../lib/seo";
 
@@ -27,6 +27,20 @@ const router: IRouter = Router();
 router.use("/admin", requireAdmin);
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+const margin = (retail: number, cost: number) => (retail > 0 ? round2(((retail - cost) / retail) * 100) : 0);
+
+function allUnitsMoney(r: { units?: number | null; approx?: number | null; cost?: number | null; retail?: number | null } | undefined) {
+  const cost = round2(Number(r?.cost ?? 0));
+  const retail = round2(Number(r?.retail ?? 0));
+  return {
+    units: Number(r?.units ?? 0),
+    approxPositions: Number(r?.approx ?? 0),
+    costValue: cost,
+    retailValue: retail,
+    profit: round2(retail - cost),
+    marginPercent: margin(retail, cost),
+  };
+}
 
 /** Stock money as of the latest sync: one unit of every product a customer can buy today. */
 async function moneyTotals(where: SQL | undefined) {
@@ -38,6 +52,10 @@ async function moneyTotals(where: SQL | undefined) {
       positionsWithStock: sql<number>`coalesce(sum(${oneUnitSql}), 0)::int`,
       cost: sql<number>`coalesce(sum(${oneUnitSql} * coalesce(products.supplier_price, 0)), 0)::float8`,
       retail: sql<number>`coalesce(sum(${oneUnitSql} * ${price}), 0)::float8`,
+      units: sql<number>`coalesce(sum(${allUnitsSql}), 0)::int`,
+      approx: sql<number>`coalesce(sum(${approxUnitsSql}), 0)::int`,
+      allCost: sql<number>`coalesce(sum(${allUnitsSql} * coalesce(products.supplier_price, 0)), 0)::float8`,
+      allRetail: sql<number>`coalesce(sum(${allUnitsSql} * ${price}), 0)::float8`,
     })
     .from(productsTable)
     .where(where);
@@ -52,6 +70,7 @@ async function moneyTotals(where: SQL | undefined) {
     profit,
     marginPercent: retail > 0 ? round2((profit / retail) * 100) : 0,
     markupPercent: Number(s.markupPercent),
+    allUnits: allUnitsMoney({ units: row?.units, approx: row?.approx, cost: row?.allCost, retail: row?.allRetail }),
   };
 }
 
@@ -68,7 +87,10 @@ router.get("/admin/products/summary", async (req, res) => {
     const s = await getSettings();
     const price = retailPriceSql({ markupPercent: parsed.data.whatIfMarkup, roundPrices: s.roundPrices });
     const [row] = await db
-      .select({ retail: sql<number>`coalesce(sum(${oneUnitSql} * ${price}), 0)::float8` })
+      .select({
+        retail: sql<number>`coalesce(sum(${oneUnitSql} * ${price}), 0)::float8`,
+        allRetail: sql<number>`coalesce(sum(${allUnitsSql} * ${price}), 0)::float8`,
+      })
       .from(productsTable)
       .where(where);
     const retail = round2(row?.retail ?? 0);
@@ -76,6 +98,8 @@ router.get("/admin/products/summary", async (req, res) => {
       markupPercent: parsed.data.whatIfMarkup,
       retailValue: retail,
       profit: round2(retail - totals.costValue),
+      allUnitsRetailValue: round2(row?.allRetail ?? 0),
+      allUnitsProfit: round2((row?.allRetail ?? 0) - totals.allUnits.costValue),
     };
   }
   res.json({ ...totals, whatIf });
@@ -131,11 +155,19 @@ router.get("/admin/inventory", async (_req, res) => {
       positions: number;
       cost: number;
       retail: number;
+      units: number;
+      approx: number;
+      all_cost: number;
+      all_retail: number;
     }>(sql`
       select coalesce(c.parent_id, c.id) as category_id,
         (count(*) filter (where ${oneUnitSql} > 0))::int as positions,
         coalesce(sum(${oneUnitSql} * coalesce(products.supplier_price, 0)), 0)::float8 as cost,
-        coalesce(sum(${oneUnitSql} * ${price}), 0)::float8 as retail
+        coalesce(sum(${oneUnitSql} * ${price}), 0)::float8 as retail,
+        coalesce(sum(${allUnitsSql}), 0)::int as units,
+        coalesce(sum(${approxUnitsSql}), 0)::int as approx,
+        coalesce(sum(${allUnitsSql} * coalesce(products.supplier_price, 0)), 0)::float8 as all_cost,
+        coalesce(sum(${allUnitsSql} * ${price}), 0)::float8 as all_retail
       from products join categories c on c.id = products.category_id
       group by 1 order by retail desc`),
     db
@@ -160,6 +192,7 @@ router.get("/admin/inventory", async (_req, res) => {
     profit: totals.profit,
     marginPercent: totals.marginPercent,
     markupPercent: totals.markupPercent,
+    allUnits: totals.allUnits,
     categories: byCat.rows
       .filter((r) => r.positions > 0)
       .map((r) => ({
@@ -169,6 +202,7 @@ router.get("/admin/inventory", async (_req, res) => {
         costValue: round2(r.cost),
         retailValue: round2(r.retail),
         profit: round2(r.retail - r.cost),
+        allUnits: allUnitsMoney({ units: r.units, approx: r.approx, cost: r.all_cost, retail: r.all_retail }),
       })),
     lowStockBestsellers: lowStock.map((p) =>
       toAdminProduct(p, s, p.categoryId ? (catMap.get(p.categoryId) ?? null) : null),

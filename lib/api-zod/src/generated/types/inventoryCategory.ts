@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AllUnitsMoney } from './allUnitsMoney';
 
 export interface InventoryCategory {
   categoryId: number;
@@ -13,4 +14,5 @@ export interface InventoryCategory {
   costValue: number;
   retailValue: number;
   profit: number;
+  allUnits: AllUnitsMoney;
 }

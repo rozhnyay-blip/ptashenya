@@ -6,27 +6,35 @@ import { ProductImage } from "@/components/store/product-image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChangeBadge } from "@/pages/admin/prices";
 import { StockAsOf } from "@/components/admin/stock-as-of";
+import { CountModeToggle, useCountMode } from "@/components/admin/count-mode";
 import { num, pct, relTime, uah } from "@/lib/format";
 
 export function InventoryPanels() {
   const { data: inv, isLoading, isError, refetch } = useGetAdminInventory({ query: { queryKey: getGetAdminInventoryQueryKey() } });
   const pp = { limit: 5 };
+  const [mode] = useCountMode();
   const { data: pc, isLoading: pcLoading } = useListAdminPriceChanges(pp, { query: { queryKey: getListAdminPriceChangesQueryKey(pp) } });
 
   if (isError) return <Panel className="mt-4"><div className="p-6 text-center text-sm">Не вдалося порахувати склад. <button className="font-semibold text-primary" onClick={() => refetch()} data-testid="button-retry-inventory">Повторити</button></div></Panel>;
   if (isLoading || !inv) return <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_360px]"><Skeleton className="h-80 rounded-2xl" /><Skeleton className="h-80 rounded-2xl" /></div>;
-  const cats = [...inv.categories].sort((a, b) => b.profit - a.profit);
-  const maxR = Math.max(1, ...cats.map((c) => c.retailValue));
+  const all = mode === "all";
+  const cur = all ? inv.allUnits : inv;
+  const cats = inv.categories.map((c) => ({ ...c, cur: all ? c.allUnits : c })).sort((a, b) => b.cur.profit - a.cur.profit);
+  const maxR = Math.max(1, ...cats.map((c) => c.cur.retailValue));
 
   return (
     <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_360px]">
-      <Panel title={<span className="flex items-center gap-2"><Warehouse className="h-4 w-4 text-primary" />Наявність сьогодні — по 1 шт. кожного товару</span>}>
+      <Panel title={<span className="flex items-center gap-2"><Warehouse className="h-4 w-4 text-primary" />{all ? "Наявність сьогодні — усі штуки" : "Наявність сьогодні — по 1 шт. кожного товару"}</span>}>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 pt-3">
+          <span className="text-xs font-semibold text-muted-foreground">Як рахувати:</span>
+          <CountModeToggle />
+        </div>
         <div className="border-b border-border p-3"><StockAsOf /></div>
         <div className="grid grid-cols-2 gap-px border-b border-border bg-border sm:grid-cols-4">
           {[
-            ["Закупка", inv.costValue, `${num(inv.positionsInStock)} товарів × 1 шт`],
-            ["Виручка", inv.retailValue, `націнка ${pct(inv.markupPercent, 0)}`],
-            ["Прибуток", inv.profit, `маржа ${pct(inv.marginPercent)}`],
+            ["Закупка", cur.costValue, all ? `${num(inv.allUnits.units)} шт · ${num(inv.positionsInStock)} товарів` : `${num(inv.positionsInStock)} товарів × 1 шт`],
+            ["Виручка", cur.retailValue, `націнка ${pct(inv.markupPercent, 0)}`],
+            ["Прибуток", cur.profit, `маржа ${pct(cur.marginPercent)}`],
           ].map(([l, v, sub], i) => (
             <div key={l as string} className={i === 2 ? "col-span-2 bg-[hsl(160_45%_93%)] p-4 text-[hsl(165_55%_20%)] sm:col-span-2" : "bg-card p-4"}>
               <div className="text-[10px] font-semibold uppercase tracking-wider opacity-70">{l}</div>
@@ -38,19 +46,21 @@ export function InventoryPanels() {
         {cats.length === 0 ? <p className="p-6 text-center text-sm text-muted-foreground">Товарів у наявності немає</p> : (
           <div className="max-h-[360px] overflow-y-auto">
             <table className="w-full text-xs">
-              <thead className="sticky top-0 bg-card"><tr className="text-left text-[10px] uppercase tracking-wider text-muted-foreground"><th className="px-4 py-2">Категорія</th><th className="hidden px-2 text-right sm:table-cell">Товарів</th><th className="px-2 text-right">Виручка</th><th className="px-4 text-right">Прибуток</th></tr></thead>
+              <thead className="sticky top-0 bg-card"><tr className="text-left text-[10px] uppercase tracking-wider text-muted-foreground"><th className="px-4 py-2">Категорія</th><th className="hidden px-2 text-right sm:table-cell">{all ? "Штук" : "Товарів"}</th><th className="px-2 text-right">Виручка</th><th className="px-4 text-right">Прибуток</th></tr></thead>
               <tbody>{cats.map((c) => (
                 <tr key={c.categoryId} className="border-t border-border/70 hover:bg-muted/40">
-                  <td className="px-4 py-1.5"><Link href={`/admin/products?cat=${c.categoryId}&stock=in_stock`} className="block" data-testid={`link-inv-cat-${c.categoryId}`}><div className="truncate font-medium">{c.name}</div><div className="mt-1 h-1 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-[hsl(285_35%_30%)]" style={{ width: `${(c.retailValue / maxR) * 100}%` }} /></div></Link></td>
-                  <td className="hidden px-2 text-right font-mono tabular text-muted-foreground sm:table-cell">{num(c.positions)}</td>
-                  <td className="px-2 text-right font-mono tabular" title={uah(c.retailValue)}>{uah(Math.round(c.retailValue))}</td>
-                  <td className="px-4 text-right font-mono font-semibold tabular text-[hsl(165_55%_28%)]" title={uah(c.profit)}>{uah(Math.round(c.profit))}</td>
+                  <td className="px-4 py-1.5"><Link href={`/admin/products?cat=${c.categoryId}&stock=in_stock`} className="block" data-testid={`link-inv-cat-${c.categoryId}`}><div className="truncate font-medium">{c.name}</div><div className="mt-1 h-1 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-[hsl(285_35%_30%)]" style={{ width: `${(c.cur.retailValue / maxR) * 100}%` }} /></div></Link></td>
+                  <td className="hidden px-2 text-right font-mono tabular text-muted-foreground sm:table-cell">{num(all ? c.allUnits.units : c.positions)}</td>
+                  <td className="px-2 text-right font-mono tabular" title={uah(c.cur.retailValue)}>{uah(Math.round(c.cur.retailValue))}</td>
+                  <td className="px-4 text-right font-mono font-semibold tabular text-[hsl(165_55%_28%)]" title={uah(c.cur.profit)}>{uah(Math.round(c.cur.profit))}</td>
                 </tr>
               ))}</tbody>
             </table>
           </div>
         )}
-        <p className="border-t border-border px-4 py-2 text-[10px] text-muted-foreground">Кожен товар у наявності рахується 1 раз (1 шт.) за цінами магазину. Натисніть на категорію, щоб побачити її товари.</p>
+        <p className="border-t border-border px-4 py-2 text-[10px] text-muted-foreground">{all
+          ? <>Рахуються всі штуки на складі постачальника за цінами магазину.{inv.allUnits.approxPositions > 0 && <> Для {num(inv.allUnits.approxPositions)} товарів відомо лише «від–до» (наприклад, 10…50) — беремо мінімум, тож насправді може бути трохи більше.</>}</>
+          : "Кожен товар у наявності рахується 1 раз (1 шт.) за цінами магазину."} Натисніть на категорію, щоб побачити її товари.</p>
         <div className="flex flex-wrap gap-2 border-t border-border px-4 py-3">
           <Link href="/admin/products?stock=in_stock" className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-foreground px-3 text-xs font-bold text-background transition hover:bg-foreground/90" data-testid="link-inventory-products"><ListFilter className="h-3.5 w-3.5" />Усі товари в наявності</Link>
           <a href={`${import.meta.env.BASE_URL}api/admin/export/products.csv?stock=in_stock`} download className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-xs font-semibold transition hover:bg-muted" data-testid="link-inventory-export"><Download className="h-3.5 w-3.5" />Завантажити список (Excel)</a>

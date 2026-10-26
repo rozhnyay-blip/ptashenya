@@ -6,10 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AdminProduct } from './adminProduct';
+import type { AllUnitsMoney } from './allUnitsMoney';
 import type { InventoryCategory } from './inventoryCategory';
 
 export interface InventoryReport {
   positionsInStock: number;
+  allUnits: AllUnitsMoney;
   costValue: number;
   retailValue: number;
   profit: number;

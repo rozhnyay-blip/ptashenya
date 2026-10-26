@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AllUnitsMoney } from './allUnitsMoney';
 import type { WhatIfMoney } from './whatIfMoney';
 
 export interface ProductsSummary {
@@ -21,5 +22,6 @@ export interface ProductsSummary {
   marginPercent: number;
   /** Current store markup */
   markupPercent: number;
+  allUnits: AllUnitsMoney;
   whatIf?: WhatIfMoney | null;
 }

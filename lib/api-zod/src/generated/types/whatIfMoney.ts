@@ -11,4 +11,7 @@ export interface WhatIfMoney {
   /** One unit of every in-stock product at the hypothetical markup (rounding and manual prices applied) */
   retailValue: number;
   profit: number;
+  /** Every unit in stock at the hypothetical markup */
+  allUnitsRetailValue: number;
+  allUnitsProfit: number;
 }

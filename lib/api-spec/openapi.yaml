@@ -1060,7 +1060,7 @@ components:
 
     ProductsSummary:
       type: object
-      required: [positions, positionsWithStock, costValue, retailValue, profit, marginPercent, markupPercent]
+      required: [positions, positionsWithStock, costValue, retailValue, profit, marginPercent, markupPercent, allUnits]
       properties:
         positions: { type: integer, description: "Products matching the filter" }
         positionsWithStock: { type: integer, description: "Of them in stock today and sellable in the store" }
@@ -1069,6 +1069,7 @@ components:
         profit: { type: number }
         marginPercent: { type: number, description: "Profit as percent of revenue" }
         markupPercent: { type: number, description: "Current store markup" }
+        allUnits: { $ref: "#/components/schemas/AllUnitsMoney" }
         whatIf:
           oneOf:
             - $ref: "#/components/schemas/WhatIfMoney"
@@ -1076,11 +1077,25 @@ components:
 
     WhatIfMoney:
       type: object
-      required: [markupPercent, retailValue, profit]
+      required: [markupPercent, retailValue, profit, allUnitsRetailValue, allUnitsProfit]
       properties:
         markupPercent: { type: number }
         retailValue: { type: number, description: "One unit of every in-stock product at the hypothetical markup (rounding and manual prices applied)" }
         profit: { type: number }
+        allUnitsRetailValue: { type: number, description: "Every unit in stock at the hypothetical markup" }
+        allUnitsProfit: { type: number }
+
+    AllUnitsMoney:
+      type: object
+      description: Every unit in stock at the supplier. Exact count where known; for range labels (e.g. 10...50, over 100) the minimum.
+      required: [units, approxPositions, costValue, retailValue, profit, marginPercent]
+      properties:
+        units: { type: integer }
+        approxPositions: { type: integer, description: "Products whose count is only known as a range (minimum used)" }
+        costValue: { type: number }
+        retailValue: { type: number }
+        profit: { type: number }
+        marginPercent: { type: number }
 
     BulkProductAction:
       type: object
@@ -1104,7 +1119,7 @@ components:
 
     InventoryCategory:
       type: object
-      required: [categoryId, name, positions, costValue, retailValue, profit]
+      required: [categoryId, name, positions, costValue, retailValue, profit, allUnits]
       properties:
         categoryId: { type: integer }
         name: { type: string }
@@ -1112,12 +1127,14 @@ components:
         costValue: { type: number }
         retailValue: { type: number }
         profit: { type: number }
+        allUnits: { $ref: "#/components/schemas/AllUnitsMoney" }
 
     InventoryReport:
       type: object
-      required: [positionsInStock, costValue, retailValue, profit, marginPercent, markupPercent, categories, lowStockBestsellers]
+      required: [positionsInStock, costValue, retailValue, profit, marginPercent, markupPercent, allUnits, categories, lowStockBestsellers]
       properties:
         positionsInStock: { type: integer }
+        allUnits: { $ref: "#/components/schemas/AllUnitsMoney" }
         costValue: { type: number }
         retailValue: { type: number }
         profit: { type: number }

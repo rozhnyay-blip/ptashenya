@@ -9,6 +9,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StockAsOf } from "@/components/admin/stock-as-of";
+import { CountModeToggle, useCountMode } from "@/components/admin/count-mode";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiError, num, pct, uah } from "@/lib/format";
@@ -37,13 +38,17 @@ export function MoneySummary({ params }: { params: GetAdminProductsSummaryParams
   const qc = useQueryClient();
   const { toast } = useToast();
   const upd = useUpdateAdminSettings();
+  const [mode] = useCountMode();
 
   if (isError) return <div className="mb-4 rounded-2xl border border-card-border bg-card p-5 text-sm">Не вдалося порахувати вартість товарів. <button className="font-semibold text-primary" onClick={() => refetch()} data-testid="button-retry-summary">Повторити</button></div>;
   if (isLoading || !s) return <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_380px]"><Skeleton className="h-40 rounded-2xl" /><Skeleton className="h-40 rounded-2xl" /></div>;
 
   const markup = m ?? s.markupPercent;
   const same = markup === s.markupPercent;
-  const w = same ? { retailValue: s.retailValue, profit: s.profit } : wi?.whatIf ?? null;
+  const all = mode === "all";
+  const cur = all ? s.allUnits : s;
+  const wiv = wi?.whatIf ? (all ? { retailValue: wi.whatIf.allUnitsRetailValue, profit: wi.whatIf.allUnitsProfit } : wi.whatIf) : null;
+  const w = same ? { retailValue: cur.retailValue, profit: cur.profit } : wiv;
   const qs = new URLSearchParams();
   if (params.search) qs.set("search", params.search);
   if (params.categoryId) qs.set("categoryId", String(params.categoryId));
@@ -65,18 +70,25 @@ export function MoneySummary({ params }: { params: GetAdminProductsSummaryParams
   return (
     <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_400px]">
       <section className="rounded-2xl border border-card-border bg-card p-4">
-        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-sm font-bold">Товари в наявності — по 1 шт. кожного</h2>
-          <span className="font-mono text-[11px] text-muted-foreground tabular" data-testid="text-summary-positions">{num(s.positionsWithStock)} товарів × 1 шт</span>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
+            <h2 className="text-sm font-bold">{all ? "Товари в наявності — усі штуки на складі" : "Товари в наявності — по 1 шт. кожного"}</h2>
+            <span className="font-mono text-[11px] text-muted-foreground tabular" data-testid="text-summary-positions">
+              {all ? `${num(s.allUnits.units)} шт · ${num(s.positionsWithStock)} товарів` : `${num(s.positionsWithStock)} товарів × 1 шт`}
+            </span>
+          </div>
+          <CountModeToggle />
         </div>
         <StockAsOf className="mb-3" />
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <Big label="Вартість закупки" value={s.costValue} sub="купити по 1 шт. у постачальника" testid="text-summary-cost" />
-          <Big tone="dark" label="Виручка" value={s.retailValue} sub="продати по 1 шт. за цінами магазину" testid="text-summary-retail" />
-          <Big tone="profit" label="Ваш прибуток" value={s.profit} sub={`маржа ${pct(s.marginPercent)} · націнка ${pct(s.markupPercent, 0)}`} testid="text-summary-profit" />
+          <Big label="Вартість закупки" value={cur.costValue} sub={all ? "купити все, що є у постачальника" : "купити по 1 шт. у постачальника"} testid="text-summary-cost" />
+          <Big tone="dark" label="Виручка" value={cur.retailValue} sub={all ? "продати все за цінами магазину" : "продати по 1 шт. за цінами магазину"} testid="text-summary-retail" />
+          <Big tone="profit" label="Ваш прибуток" value={cur.profit} sub={`маржа ${pct(cur.marginPercent)} · націнка ${pct(s.markupPercent, 0)}`} testid="text-summary-profit" />
         </div>
         <p className="mt-3 flex gap-1.5 text-[11px] leading-snug text-muted-foreground"><Info className="mt-px h-3 w-3 shrink-0" />
-          <span>Кожен товар, який сьогодні є на складі постачальника і продається у вашому магазині, рахується рівно 1 раз (1 шт.), незалежно від того, скільки штук на складі. Приховані товари й товари без ціни не рахуються.</span></p>
+          <span>{all
+            ? <>Рахуються всі штуки, які сьогодні є на складі постачальника. {s.allUnits.approxPositions > 0 && <>Для {num(s.allUnits.approxPositions)} товарів постачальник показує лише «від–до» (наприклад, 10…50 або понад 100) — беремо мінімум, тож насправді може бути трохи більше. </>}Приховані товари й товари без ціни не рахуються.</>
+            : <>Кожен товар, який сьогодні є на складі постачальника і продається у вашому магазині, рахується рівно 1 раз (1 шт.), незалежно від того, скільки штук на складі. Приховані товари й товари без ціни не рахуються.</>}</span></p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Link href={listHref} className={btn} data-testid="button-summary-show-list"><ListFilter className="h-3.5 w-3.5" />Показати ці товари</Link>
           <a href={exportHref} download className={btn} data-testid="button-summary-export"><Download className="h-3.5 w-3.5" />Завантажити список (Excel)</a>
@@ -101,7 +113,7 @@ export function MoneySummary({ params }: { params: GetAdminProductsSummaryParams
             </div>
           ))}
         </div>
-        <p className="mt-2 text-[10px] leading-snug text-muted-foreground">Рухайте повзунок — побачите, скільки буде виручки й прибутку (по 1 шт. кожного товару) з іншою націнкою. Ручні ціни не змінюються. Кнопка нижче застосує націнку до всього магазину.</p>
+        <p className="mt-2 text-[10px] leading-snug text-muted-foreground">Рухайте повзунок — побачите, скільки буде виручки й прибутку ({all ? "усі штуки на складі" : "по 1 шт. кожного товару"}) з іншою націнкою. Ручні ціни не змінюються. Кнопка нижче застосує націнку до всього магазину.</p>
         <button type="button" disabled={!changed || upd.isPending} onClick={() => setConfirm(true)} data-testid="button-apply-markup" className="mt-3 h-9 w-full rounded-xl bg-primary text-sm font-bold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-40">
           {changed ? `Застосувати цю націнку до магазину (${markup}%)` : "Це поточна націнка магазину"}
         </button>

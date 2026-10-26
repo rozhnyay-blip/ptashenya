@@ -666,10 +666,20 @@ export const GetAdminProductsSummaryResponse = zod.object({
   "profit": zod.number(),
   "marginPercent": zod.number().describe('Profit as percent of revenue'),
   "markupPercent": zod.number().describe('Current store markup'),
+  "allUnits": zod.object({
+  "units": zod.number().int(),
+  "approxPositions": zod.number().int().describe('Products whose count is only known as a range (minimum used)'),
+  "costValue": zod.number(),
+  "retailValue": zod.number(),
+  "profit": zod.number(),
+  "marginPercent": zod.number()
+}).describe('Every unit in stock at the supplier. Exact count where known; for range labels (e.g. 10...50, over 100) the minimum.'),
   "whatIf": zod.union([zod.object({
   "markupPercent": zod.number(),
   "retailValue": zod.number().describe('One unit of every in-stock product at the hypothetical markup (rounding and manual prices applied)'),
-  "profit": zod.number()
+  "profit": zod.number(),
+  "allUnitsRetailValue": zod.number().describe('Every unit in stock at the hypothetical markup'),
+  "allUnitsProfit": zod.number()
 }),zod.null()]).optional()
 })
 
@@ -697,6 +707,14 @@ export const BulkUpdateAdminProductsResponse = zod.object({
  */
 export const GetAdminInventoryResponse = zod.object({
   "positionsInStock": zod.number().int(),
+  "allUnits": zod.object({
+  "units": zod.number().int(),
+  "approxPositions": zod.number().int().describe('Products whose count is only known as a range (minimum used)'),
+  "costValue": zod.number(),
+  "retailValue": zod.number(),
+  "profit": zod.number(),
+  "marginPercent": zod.number()
+}).describe('Every unit in stock at the supplier. Exact count where known; for range labels (e.g. 10...50, over 100) the minimum.'),
   "costValue": zod.number(),
   "retailValue": zod.number(),
   "profit": zod.number(),
@@ -708,7 +726,15 @@ export const GetAdminInventoryResponse = zod.object({
   "positions": zod.number().int(),
   "costValue": zod.number(),
   "retailValue": zod.number(),
-  "profit": zod.number()
+  "profit": zod.number(),
+  "allUnits": zod.object({
+  "units": zod.number().int(),
+  "approxPositions": zod.number().int().describe('Products whose count is only known as a range (minimum used)'),
+  "costValue": zod.number(),
+  "retailValue": zod.number(),
+  "profit": zod.number(),
+  "marginPercent": zod.number()
+}).describe('Every unit in stock at the supplier. Exact count where known; for range labels (e.g. 10...50, over 100) the minimum.')
 })),
   "lowStockBestsellers": zod.array(zod.object({
   "id": zod.number().int(),

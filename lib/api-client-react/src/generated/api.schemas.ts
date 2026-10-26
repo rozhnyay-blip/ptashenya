@@ -474,11 +474,27 @@ export interface SyncSourcesInput {
   enabledIds: string[];
 }
 
+/**
+ * Every unit in stock at the supplier. Exact count where known; for range labels (e.g. 10...50, over 100) the minimum.
+ */
+export interface AllUnitsMoney {
+  units: number;
+  /** Products whose count is only known as a range (minimum used) */
+  approxPositions: number;
+  costValue: number;
+  retailValue: number;
+  profit: number;
+  marginPercent: number;
+}
+
 export interface WhatIfMoney {
   markupPercent: number;
   /** One unit of every in-stock product at the hypothetical markup (rounding and manual prices applied) */
   retailValue: number;
   profit: number;
+  /** Every unit in stock at the hypothetical markup */
+  allUnitsRetailValue: number;
+  allUnitsProfit: number;
 }
 
 export interface ProductsSummary {
@@ -495,6 +511,7 @@ export interface ProductsSummary {
   marginPercent: number;
   /** Current store markup */
   markupPercent: number;
+  allUnits: AllUnitsMoney;
   whatIf?: WhatIfMoney | null;
 }
 
@@ -532,10 +549,12 @@ export interface InventoryCategory {
   costValue: number;
   retailValue: number;
   profit: number;
+  allUnits: AllUnitsMoney;
 }
 
 export interface InventoryReport {
   positionsInStock: number;
+  allUnits: AllUnitsMoney;
   costValue: number;
   retailValue: number;
   profit: number;

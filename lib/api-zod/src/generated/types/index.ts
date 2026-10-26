@@ -11,6 +11,7 @@ export * from './activityItemType';
 export * from './adminDashboard';
 export * from './adminProduct';
 export * from './adminProductPage';
+export * from './allUnitsMoney';
 export * from './bulkProductAction';
 export * from './bulkProductActionAction';
 export * from './bulkResult';

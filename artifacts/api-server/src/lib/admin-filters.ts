@@ -39,3 +39,13 @@ export const sellableSql = sql`(products.in_stock and products.is_active
 
 /** Stock money counts one unit of every product that is in stock today and sellable in the store. */
 export const oneUnitSql = sql`(case when ${sellableSql} and coalesce(products.stock_qty, 1) > 0 then 1 else 0 end)`;
+
+/**
+ * "All units" stock money: the supplier's count for every sellable in-stock product.
+ * Exact where known; for range labels ("10...50", "понад 100") the minimum of the range.
+ */
+export const allUnitsSql = sql`(case when ${sellableSql} and coalesce(products.stock_qty, 1) > 0 then coalesce(products.stock_qty, 1) else 0 end)`;
+
+/** 1 when the product is counted in allUnitsSql but its count is only known as a range. */
+export const approxUnitsSql = sql`(case when ${sellableSql} and coalesce(products.stock_qty, 1) > 0
+  and (products.stock_qty is null or products.stock_qty_max is null or products.stock_qty_max <> products.stock_qty) then 1 else 0 end)`;

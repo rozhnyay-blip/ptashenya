@@ -10,6 +10,14 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: catalog
+    description: Public storefront catalog
+  - name: orders
+    description: Customer orders
+  - name: auth
+    description: Current user
+  - name: admin
+    description: Owner admin panel
 paths:
   /healthz:
     get:
@@ -24,6 +32,433 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Current user and admin flag
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [catalog]
+      summary: Category tree with product counts (only categories that have products)
+      responses:
+        "200":
+          description: Categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+
+  /products:
+    get:
+      operationId: listProducts
+      tags: [catalog]
+      summary: Search and filter products
+      parameters:
+        - { name: search, in: query, required: false, schema: { type: string } }
+        - { name: categoryId, in: query, required: false, schema: { type: integer } }
+        - { name: minPrice, in: query, required: false, schema: { type: number } }
+        - { name: maxPrice, in: query, required: false, schema: { type: number } }
+        - { name: onlyNew, in: query, required: false, schema: { type: boolean } }
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [popular, newest, price_asc, price_desc, name]
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 1 } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 96 } }
+      responses:
+        "200":
+          description: Product page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductPage"
+
+  /products/{id}:
+    get:
+      operationId: getProduct
+      tags: [catalog]
+      summary: Product details
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductDetail"
+        "404":
+          description: Not found
+
+  /products/{id}/related:
+    get:
+      operationId: getRelatedProducts
+      tags: [catalog]
+      summary: Products from the same category
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Related
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+
+  /storefront/highlights:
+    get:
+      operationId: getStorefrontHighlights
+      tags: [catalog]
+      summary: Home page data - new arrivals, bestsellers, featured, top categories, store stats
+      responses:
+        "200":
+          description: Highlights
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorefrontHighlights"
+
+  /orders:
+    post:
+      operationId: createOrder
+      tags: [orders]
+      summary: Place an order (no account required)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderDetail"
+        "400":
+          description: Invalid order
+
+  /orders/lookup:
+    get:
+      operationId: lookupOrder
+      tags: [orders]
+      summary: Track an order by its number and phone
+      parameters:
+        - { name: number, in: query, required: true, schema: { type: string } }
+        - { name: phone, in: query, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderDetail"
+        "404":
+          description: Not found
+
+  /admin/dashboard:
+    get:
+      operationId: getAdminDashboard
+      tags: [admin]
+      summary: Key store metrics
+      responses:
+        "200":
+          description: Dashboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDashboard"
+
+  /admin/sales-chart:
+    get:
+      operationId: getAdminSalesChart
+      tags: [admin]
+      summary: Daily revenue and order counts
+      parameters:
+        - { name: days, in: query, required: false, schema: { type: integer, minimum: 7, maximum: 365 } }
+      responses:
+        "200":
+          description: Series
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SalesPoint"
+
+  /admin/top-products:
+    get:
+      operationId: getAdminTopProducts
+      tags: [admin]
+      summary: Best-selling products by revenue
+      responses:
+        "200":
+          description: Top products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TopProduct"
+
+  /admin/category-breakdown:
+    get:
+      operationId: getAdminCategoryBreakdown
+      tags: [admin]
+      summary: Revenue and product count per top-level category
+      responses:
+        "200":
+          description: Breakdown
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CategoryStat"
+
+  /admin/activity:
+    get:
+      operationId: getAdminActivity
+      tags: [admin]
+      summary: Recent activity feed (orders, status changes, syncs)
+      responses:
+        "200":
+          description: Activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  /admin/orders:
+    get:
+      operationId: listAdminOrders
+      tags: [admin]
+      summary: Orders list
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/OrderStatus"
+        - { name: search, in: query, required: false, schema: { type: string } }
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 1 } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        "200":
+          description: Orders page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderPage"
+
+  /admin/orders/{id}:
+    get:
+      operationId: getAdminOrder
+      tags: [admin]
+      summary: Order details
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderDetail"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateAdminOrder
+      tags: [admin]
+      summary: Change order status or note
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderDetail"
+
+  /admin/products:
+    get:
+      operationId: listAdminProducts
+      tags: [admin]
+      summary: All products including hidden and out of stock
+      parameters:
+        - { name: search, in: query, required: false, schema: { type: string } }
+        - { name: categoryId, in: query, required: false, schema: { type: integer } }
+        - name: stock
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [all, in_stock, out_of_stock, hidden]
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 1 } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        "200":
+          description: Products page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProductPage"
+
+  /admin/products/{id}:
+    patch:
+      operationId: updateAdminProduct
+      tags: [admin]
+      summary: Hide/show, feature, or override price of a product
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProduct"
+
+  /admin/settings:
+    get:
+      operationId: getAdminSettings
+      tags: [admin]
+      summary: Store settings
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StoreSettings"
+    put:
+      operationId: updateAdminSettings
+      tags: [admin]
+      summary: Update store settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StoreSettingsInput"
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StoreSettings"
+
+  /admin/sync/status:
+    get:
+      operationId: getSyncStatus
+      tags: [admin]
+      summary: Current sync state (poll while running)
+      responses:
+        "200":
+          description: Status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncStatus"
+
+  /admin/sync/run:
+    post:
+      operationId: startSync
+      tags: [admin]
+      summary: Start a supplier warehouse sync now
+      responses:
+        "202":
+          description: Started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncRun"
+        "409":
+          description: Already running
+
+  /admin/sync/runs:
+    get:
+      operationId: listSyncRuns
+      tags: [admin]
+      summary: Sync history
+      responses:
+        "200":
+          description: Runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SyncRun"
+
+  /admin/sync/sources:
+    get:
+      operationId: listSyncSources
+      tags: [admin]
+      summary: Supplier top-level categories that can be imported
+      responses:
+        "200":
+          description: Sources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SyncSource"
+    put:
+      operationId: updateSyncSources
+      tags: [admin]
+      summary: Choose which supplier categories are imported
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncSourcesInput"
+      responses:
+        "200":
+          description: Sources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SyncSource"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +469,393 @@ components:
       required:
         - status
 
+    Me:
+      type: object
+      required: [signedIn, isAdmin]
+      properties:
+        signedIn: { type: boolean }
+        isAdmin: { type: boolean }
+        email: { type: ["string", "null"] }
+
+    Category:
+      type: object
+      required: [id, name, slug, parentId, productCount]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        parentId: { type: ["integer", "null"] }
+        productCount: { type: integer }
+        imageUrl: { type: ["string", "null"], description: "Image of a representative product" }
+
+    Product:
+      type: object
+      required: [id, sku, name, price, inStock, isNew, imageUrl, categoryId, categoryName]
+      properties:
+        id: { type: integer }
+        sku: { type: string, description: "Supplier product code" }
+        name: { type: string }
+        price: { type: number, description: "Retail price in UAH" }
+        oldPrice: { type: ["number", "null"], description: "Crossed-out price when on sale" }
+        inStock: { type: boolean }
+        isNew: { type: boolean }
+        isFeatured: { type: boolean }
+        imageUrl: { type: ["string", "null"] }
+        image2Url: { type: ["string", "null"] }
+        categoryId: { type: ["integer", "null"] }
+        categoryName: { type: ["string", "null"] }
+
+    ProductDetail:
+      allOf:
+        - $ref: "#/components/schemas/Product"
+        - type: object
+          required: [images, breadcrumbs]
+          properties:
+            article: { type: ["string", "null"], description: "Manufacturer article" }
+            description: { type: ["string", "null"] }
+            images:
+              type: array
+              items: { type: string }
+            breadcrumbs:
+              type: array
+              items:
+                $ref: "#/components/schemas/CategoryRef"
+
+    CategoryRef:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+
+    ProductPage:
+      type: object
+      required: [items, total, page, pages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+        total: { type: integer }
+        page: { type: integer }
+        pages: { type: integer }
+
+    StorefrontHighlights:
+      type: object
+      required: [newArrivals, bestsellers, featured, topCategories, stats]
+      properties:
+        newArrivals:
+          type: array
+          items: { $ref: "#/components/schemas/Product" }
+        bestsellers:
+          type: array
+          items: { $ref: "#/components/schemas/Product" }
+        featured:
+          type: array
+          items: { $ref: "#/components/schemas/Product" }
+        topCategories:
+          type: array
+          items: { $ref: "#/components/schemas/Category" }
+        stats:
+          type: object
+          required: [totalProducts, totalCategories, ordersDelivered]
+          properties:
+            totalProducts: { type: integer }
+            totalCategories: { type: integer }
+            ordersDelivered: { type: integer }
+            lastSyncAt: { type: ["string", "null"], format: date-time }
+
+    OrderStatus:
+      type: string
+      enum: [new, confirmed, shipped, delivered, cancelled]
+
+    DeliveryMethod:
+      type: string
+      enum: [nova_poshta, ukrposhta, courier, pickup]
+
+    PaymentMethod:
+      type: string
+      enum: [cod, card_transfer]
+
+    OrderItemInput:
+      type: object
+      required: [productId, quantity]
+      properties:
+        productId: { type: integer }
+        quantity: { type: integer, minimum: 1, maximum: 999 }
+
+    OrderInput:
+      type: object
+      required: [customerName, phone, city, deliveryMethod, paymentMethod, items]
+      properties:
+        customerName: { type: string, minLength: 2 }
+        phone: { type: string, minLength: 7 }
+        email: { type: string }
+        city: { type: string, minLength: 2 }
+        deliveryMethod: { $ref: "#/components/schemas/DeliveryMethod" }
+        deliveryAddress: { type: string, description: "Branch number or street address" }
+        paymentMethod: { $ref: "#/components/schemas/PaymentMethod" }
+        comment: { type: string }
+        items:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/OrderItemInput" }
+
+    OrderItem:
+      type: object
+      required: [id, productId, name, sku, price, quantity, lineTotal]
+      properties:
+        id: { type: integer }
+        productId: { type: ["integer", "null"] }
+        name: { type: string }
+        sku: { type: string }
+        imageUrl: { type: ["string", "null"] }
+        price: { type: number }
+        supplierPrice: { type: ["number", "null"] }
+        quantity: { type: integer }
+        lineTotal: { type: number }
+
+    Order:
+      type: object
+      required: [id, number, customerName, phone, city, deliveryMethod, paymentMethod, status, total, itemsCount, createdAt]
+      properties:
+        id: { type: integer }
+        number: { type: string }
+        customerName: { type: string }
+        phone: { type: string }
+        email: { type: ["string", "null"] }
+        city: { type: string }
+        deliveryMethod: { $ref: "#/components/schemas/DeliveryMethod" }
+        deliveryAddress: { type: ["string", "null"] }
+        paymentMethod: { $ref: "#/components/schemas/PaymentMethod" }
+        comment: { type: ["string", "null"] }
+        adminNote: { type: ["string", "null"] }
+        status: { $ref: "#/components/schemas/OrderStatus" }
+        total: { type: number }
+        profit: { type: ["number", "null"], description: "Total minus supplier cost (admin only)" }
+        itemsCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    OrderDetail:
+      allOf:
+        - $ref: "#/components/schemas/Order"
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/OrderItem" }
+
+    OrderPage:
+      type: object
+      required: [items, total, page, pages, statusCounts]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Order" }
+        total: { type: integer }
+        page: { type: integer }
+        pages: { type: integer }
+        statusCounts:
+          $ref: "#/components/schemas/StatusCounts"
+
+    StatusCounts:
+      type: object
+      required: [new, confirmed, shipped, delivered, cancelled]
+      properties:
+        new: { type: integer }
+        confirmed: { type: integer }
+        shipped: { type: integer }
+        delivered: { type: integer }
+        cancelled: { type: integer }
+
+    OrderUpdate:
+      type: object
+      properties:
+        status: { $ref: "#/components/schemas/OrderStatus" }
+        adminNote: { type: string }
+
+    AdminDashboard:
+      type: object
+      required: [revenueTotal, revenue30d, revenuePrev30d, profit30d, ordersTotal, orders30d, ordersToday, revenueToday, avgOrderValue, statusCounts, productsTotal, productsInStock, productsOutOfStock, productsHidden, productsNewToday, customersTotal]
+      properties:
+        revenueTotal: { type: number }
+        revenue30d: { type: number }
+        revenuePrev30d: { type: number }
+        profit30d: { type: number }
+        ordersTotal: { type: integer }
+        orders30d: { type: integer }
+        ordersToday: { type: integer }
+        revenueToday: { type: number }
+        avgOrderValue: { type: number }
+        statusCounts: { $ref: "#/components/schemas/StatusCounts" }
+        productsTotal: { type: integer }
+        productsInStock: { type: integer }
+        productsOutOfStock: { type: integer }
+        productsHidden: { type: integer }
+        productsNewToday: { type: integer }
+        customersTotal: { type: integer, description: "Unique phone numbers" }
+        productsNoPrice: { type: integer, description: "Products hidden because the supplier price is unknown" }
+        lastSync:
+          oneOf:
+            - $ref: "#/components/schemas/SyncRun"
+            - type: "null"
+
+    SalesPoint:
+      type: object
+      required: [date, revenue, orders]
+      properties:
+        date: { type: string, description: "YYYY-MM-DD" }
+        revenue: { type: number }
+        orders: { type: integer }
+
+    TopProduct:
+      type: object
+      required: [productId, name, quantity, revenue]
+      properties:
+        productId: { type: ["integer", "null"] }
+        name: { type: string }
+        imageUrl: { type: ["string", "null"] }
+        quantity: { type: integer }
+        revenue: { type: number }
+
+    CategoryStat:
+      type: object
+      required: [categoryId, name, productCount, inStockCount, revenue]
+      properties:
+        categoryId: { type: integer }
+        name: { type: string }
+        productCount: { type: integer }
+        inStockCount: { type: integer }
+        revenue: { type: number }
+
+    ActivityItem:
+      type: object
+      required: [id, type, title, createdAt]
+      properties:
+        id: { type: string }
+        type:
+          type: string
+          enum: [order_created, order_status, sync_finished, sync_failed]
+        title: { type: string }
+        subtitle: { type: ["string", "null"] }
+        orderId: { type: ["integer", "null"] }
+        createdAt: { type: string, format: date-time }
+
+    AdminProduct:
+      allOf:
+        - $ref: "#/components/schemas/Product"
+        - type: object
+          required: [supplierPrice, isActive, supplierUrl, salesCount, firstSeenAt, lastSeenAt]
+          properties:
+            supplierPrice: { type: ["number", "null"] }
+            priceOverride: { type: ["number", "null"] }
+            isActive: { type: boolean, description: "False when hidden by the owner" }
+            supplierUrl: { type: string }
+            salesCount: { type: integer }
+            firstSeenAt: { type: string, format: date-time }
+            lastSeenAt: { type: ["string", "null"], format: date-time }
+
+    AdminProductPage:
+      type: object
+      required: [items, total, page, pages]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AdminProduct" }
+        total: { type: integer }
+        page: { type: integer }
+        pages: { type: integer }
+
+    ProductUpdate:
+      type: object
+      properties:
+        isActive: { type: boolean }
+        isFeatured: { type: boolean }
+        priceOverride: { type: ["number", "null"] }
+
+    StoreSettings:
+      type: object
+      required: [storeName, markupPercent, roundPrices, autoSyncEnabled, autoSyncHour, contactPhone, minOrderAmount, freeShippingFrom]
+      properties:
+        storeName: { type: string }
+        markupPercent: { type: number, description: "Added on top of the supplier price" }
+        roundPrices: { type: boolean, description: "Round retail prices to whole hryvnia" }
+        autoSyncEnabled: { type: boolean }
+        autoSyncHour: { type: integer, minimum: 0, maximum: 23, description: "Kyiv time hour for daily sync" }
+        contactPhone: { type: string }
+        minOrderAmount: { type: number }
+        freeShippingFrom: { type: ["number", "null"] }
+
+    StoreSettingsInput:
+      type: object
+      properties:
+        storeName: { type: string, minLength: 1 }
+        markupPercent: { type: number, minimum: 0, maximum: 500 }
+        roundPrices: { type: boolean }
+        autoSyncEnabled: { type: boolean }
+        autoSyncHour: { type: integer, minimum: 0, maximum: 23 }
+        contactPhone: { type: string }
+        minOrderAmount: { type: number, minimum: 0 }
+        freeShippingFrom: { type: ["number", "null"] }
+
+    SyncRun:
+      type: object
+      required: [id, status, trigger, startedAt, pagesScanned, productsSeen, added, updated, wentOutOfStock, backInStock]
+      properties:
+        id: { type: integer }
+        status:
+          type: string
+          enum: [running, success, failed]
+        trigger:
+          type: string
+          enum: [manual, scheduled]
+        startedAt: { type: string, format: date-time }
+        finishedAt: { type: ["string", "null"], format: date-time }
+        pagesScanned: { type: integer }
+        pagesTotal: { type: ["integer", "null"] }
+        productsSeen: { type: integer }
+        added: { type: integer }
+        updated: { type: integer }
+        wentOutOfStock: { type: integer, description: "Products no longer on the supplier warehouse (sold out)" }
+        backInStock: { type: integer }
+        currentStep: { type: ["string", "null"] }
+        errorMessage: { type: ["string", "null"] }
+
+    SyncStatus:
+      type: object
+      required: [running, autoSyncEnabled, autoSyncHour]
+      properties:
+        running: { type: boolean }
+        current:
+          oneOf:
+            - $ref: "#/components/schemas/SyncRun"
+            - type: "null"
+        lastRun:
+          oneOf:
+            - $ref: "#/components/schemas/SyncRun"
+            - type: "null"
+        autoSyncEnabled: { type: boolean }
+        autoSyncHour: { type: integer }
+        nextScheduledAt: { type: ["string", "null"], format: date-time }
+        supplierAccountConnected: { type: boolean, description: "Wholesale account credentials are configured (unlocks all prices)" }
+
+    SyncSource:
+      type: object
+      required: [supplierCatId, name, url, enabled, subcategoryCount]
+      properties:
+        supplierCatId: { type: string }
+        name: { type: string }
+        url: { type: string }
+        enabled: { type: boolean }
+        subcategoryCount: { type: integer }
+        productCount: { type: integer, description: "Products imported from this source" }
+
+    SyncSourcesInput:
+      type: object
+      required: [enabledIds]
+      properties:
+        enabledIds:
+          type: array
+          items: { type: string }

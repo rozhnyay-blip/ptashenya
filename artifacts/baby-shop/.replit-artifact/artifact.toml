@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Магазин дитячих товарів"
+description = "Український інтернет-магазин товарів для догляду за дитиною (каталог 20 000+ товарів постачальника toysi.ua). Покупці шукають, фільтрують, додають у кошик і оформлюють замовлення. Власник (rozhnyay@gmail.com) має захищену адмін-панель зі статистикою, замовленнями, товарами та щоденною синхронізацією асортименту зі складу постачальника."
+version = "1.0.0"
+id = "artifacts/baby-shop"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22304
+
+[services.development]
+run = "pnpm --filter @workspace/baby-shop run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/baby-shop", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/baby-shop/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22304"
+BASE_PATH = "/"

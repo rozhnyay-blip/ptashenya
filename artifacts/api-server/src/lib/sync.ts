@@ -1,0 +1,410 @@
+import {
+  db,
+  categoriesTable,
+  productsTable,
+  syncRunsTable,
+  syncSourcesTable,
+  type SyncRunRow,
+} from "@workspace/db";
+import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { logger } from "./logger";
+import { getSettings, kyivNow } from "./settings";
+import {
+  DEFAULT_SOURCE_CAT_ID,
+  SUPPLIER_ROOT_PATH,
+  absUrl,
+  fetchHtml,
+  hasSupplierCredentials,
+  listingPagePath,
+  parseCategoryTree,
+  supplierLogin,
+  parseListing,
+  type ListedProduct,
+  type SupplierGroup,
+} from "./supplier";
+
+const CONCURRENCY = 4;
+const PAGE_SIZE = 52;
+
+let activeRunId: number | null = null;
+
+export function isSyncRunning(): boolean {
+  return activeRunId !== null;
+}
+
+/** Refreshes the list of supplier top-level categories and returns the tree. */
+export async function refreshSources(): Promise<SupplierGroup[]> {
+  const html = await fetchHtml(SUPPLIER_ROOT_PATH);
+  const tree = parseCategoryTree(html);
+  if (tree.length === 0) throw new Error("Не вдалося прочитати дерево категорій постачальника");
+  const existing = await db.select().from(syncSourcesTable);
+  const anyEnabled = existing.some((s) => s.enabled);
+  for (const [i, g] of tree.entries()) {
+    await db
+      .insert(syncSourcesTable)
+      .values({
+        supplierCatId: g.supplierCatId,
+        name: g.name,
+        url: absUrl(g.path),
+        subcategoryCount: g.children.length,
+        sortOrder: i,
+        enabled: !anyEnabled && g.supplierCatId === DEFAULT_SOURCE_CAT_ID,
+      })
+      .onConflictDoUpdate({
+        target: syncSourcesTable.supplierCatId,
+        set: {
+          name: g.name,
+          url: absUrl(g.path),
+          subcategoryCount: g.children.length,
+          sortOrder: i,
+        },
+      });
+  }
+  return tree;
+}
+
+export async function ensureSources(): Promise<void> {
+  const rows = await db.select({ id: syncSourcesTable.supplierCatId }).from(syncSourcesTable).limit(1);
+  if (rows.length === 0) await refreshSources();
+}
+
+async function upsertCategory(
+  supplierCatId: string,
+  name: string,
+  path: string,
+  parentId: number | null,
+  sortOrder: number,
+): Promise<number> {
+  const slug = path.replace(/^\/ua\//, "").replace(/\/$/, "");
+  const [row] = await db
+    .insert(categoriesTable)
+    .values({ supplierCatId, name, slug, url: absUrl(path), parentId, sortOrder })
+    .onConflictDoUpdate({
+      target: categoriesTable.supplierCatId,
+      set: { name, slug, url: absUrl(path), parentId, sortOrder },
+    })
+    .returning({ id: categoriesTable.id });
+  return row!.id;
+}
+
+interface CrawlTarget {
+  categoryId: number;
+  sourceCatId: string;
+  path: string;
+}
+
+class RunState {
+  pagesScanned = 0;
+  pagesTotal = 0;
+  productsSeen = 0;
+  added = 0;
+  updated = 0;
+  backInStock = 0;
+  wentOutOfStock = 0;
+  currentStep = "";
+  seenSkus = new Set<string>();
+  failedCategoryIds = new Set<number>();
+  lastFlush = 0;
+  constructor(public runId: number) {}
+
+  async flush(force = false) {
+    if (!force && Date.now() - this.lastFlush < 1500) return;
+    this.lastFlush = Date.now();
+    await db
+      .update(syncRunsTable)
+      .set({
+        pagesScanned: this.pagesScanned,
+        pagesTotal: this.pagesTotal || null,
+        productsSeen: this.productsSeen,
+        added: this.added,
+        updated: this.updated,
+        backInStock: this.backInStock,
+        wentOutOfStock: this.wentOutOfStock,
+        currentStep: this.currentStep,
+      })
+      .where(eq(syncRunsTable.id, this.runId));
+  }
+}
+
+async function saveProducts(state: RunState, target: CrawlTarget, items: ListedProduct[], runStart: Date) {
+  const fresh = items.filter((p) => !state.seenSkus.has(p.sku));
+  for (const p of fresh) state.seenSkus.add(p.sku);
+  if (fresh.length === 0) return;
+
+  const existing = await db
+    .select({ sku: productsTable.sku, inStock: productsTable.inStock })
+    .from(productsTable)
+    .where(inArray(productsTable.sku, fresh.map((p) => p.sku)));
+  const existingMap = new Map(existing.map((e) => [e.sku, e.inStock]));
+
+  const now = new Date();
+  await db
+    .insert(productsTable)
+    .values(
+      fresh.map((p) => ({
+        sku: p.sku,
+        supplierProductId: p.supplierProductId,
+        name: p.name,
+        supplierUrl: absUrl(p.path),
+        imageUrl: p.imageUrl,
+        image2Url: p.image2Url,
+        supplierPrice: p.price,
+        categoryId: target.categoryId,
+        sourceCatId: target.sourceCatId,
+        isNew: p.isNew,
+        inStock: true,
+        firstSeenAt: now,
+        lastSeenAt: now,
+      })),
+    )
+    .onConflictDoUpdate({
+      target: productsTable.sku,
+      set: {
+        supplierProductId: sql`excluded.supplier_product_id`,
+        name: sql`excluded.name`,
+        supplierUrl: sql`excluded.supplier_url`,
+        imageUrl: sql`excluded.image_url`,
+        image2Url: sql`excluded.image2_url`,
+        supplierPrice: sql`coalesce(excluded.supplier_price, products.supplier_price)`,
+        categoryId: sql`excluded.category_id`,
+        sourceCatId: sql`excluded.source_cat_id`,
+        isNew: sql`excluded.is_new`,
+        inStock: true,
+        lastSeenAt: now,
+      },
+    });
+
+  for (const p of fresh) {
+    state.productsSeen++;
+    if (!existingMap.has(p.sku)) state.added++;
+    else {
+      state.updated++;
+      if (existingMap.get(p.sku) === false) state.backInStock++;
+    }
+  }
+  void runStart;
+}
+
+async function pool<T>(items: T[], worker: (item: T) => Promise<void>) {
+  let index = 0;
+  const runners = Array.from({ length: Math.min(CONCURRENCY, items.length) }, async () => {
+    while (index < items.length) {
+      const item = items[index++]!;
+      await worker(item);
+    }
+  });
+  await Promise.all(runners);
+}
+
+async function executeRun(runId: number, runStart: Date) {
+  const state = new RunState(runId);
+  state.currentStep = "Читаю категорії постачальника";
+  await state.flush(true);
+
+  if (hasSupplierCredentials()) {
+    state.currentStep = "Входжу в оптовий кабінет постачальника";
+    await state.flush(true);
+    const ok = await supplierLogin().catch((err: unknown) => {
+      logger.warn({ err }, "Supplier login failed");
+      return false;
+    });
+    logger.info({ ok }, "Supplier login");
+    if (!ok) throw new Error("Не вдалося увійти в кабінет toysi.ua — перевірте телефон і пароль");
+  }
+
+  const tree = await refreshSources();
+  const enabled = await db
+    .select()
+    .from(syncSourcesTable)
+    .where(eq(syncSourcesTable.enabled, true));
+  const enabledIds = new Set(enabled.map((e) => e.supplierCatId));
+  if (enabledIds.size === 0) throw new Error("Не вибрано жодної категорії для синхронізації");
+
+  const targets: CrawlTarget[] = [];
+  for (const [gi, group] of tree.entries()) {
+    if (!enabledIds.has(group.supplierCatId)) continue;
+    const groupId = await upsertCategory(group.supplierCatId, group.name, group.path, null, gi);
+    if (group.children.length === 0) {
+      targets.push({ categoryId: groupId, sourceCatId: group.supplierCatId, path: group.path });
+    }
+    for (const [ci, child] of group.children.entries()) {
+      const childId = await upsertCategory(child.supplierCatId, child.name, child.path, groupId, ci);
+      targets.push({ categoryId: childId, sourceCatId: group.supplierCatId, path: child.path });
+    }
+  }
+
+  // Phase 1: first page of every category (discovers page counts).
+  state.currentStep = `Сканую ${targets.length} категорій`;
+  state.pagesTotal = targets.length;
+  await state.flush(true);
+  const followUps: { target: CrawlTarget; offset: number }[] = [];
+  await pool(targets, async (target) => {
+    try {
+      const page = parseListing(await fetchHtml(listingPagePath(target.path, 0)));
+      await saveProducts(state, target, page.products, runStart);
+      for (let off = PAGE_SIZE; off <= page.maxOffset; off += PAGE_SIZE) {
+        followUps.push({ target, offset: off });
+      }
+      state.pagesTotal += Math.floor(page.maxOffset / PAGE_SIZE);
+    } catch (err) {
+      state.failedCategoryIds.add(target.categoryId);
+      logger.warn({ err, path: target.path }, "Sync: category page failed");
+    }
+    state.pagesScanned++;
+    await state.flush();
+  });
+
+  // Phase 2: remaining pages.
+  state.currentStep = "Завантажую товари";
+  await pool(followUps, async ({ target, offset }) => {
+    try {
+      const page = parseListing(await fetchHtml(listingPagePath(target.path, offset)));
+      await saveProducts(state, target, page.products, runStart);
+    } catch (err) {
+      state.failedCategoryIds.add(target.categoryId);
+      logger.warn({ err, path: target.path, offset }, "Sync: listing page failed");
+    }
+    state.pagesScanned++;
+    await state.flush();
+  });
+
+  if (state.productsSeen === 0) {
+    throw new Error("Постачальник не повернув жодного товару — склад не змінено");
+  }
+
+  // Phase 3: everything from the scanned categories that disappeared from the warehouse is sold out.
+  state.currentStep = "Позначаю товари, яких більше немає на складі";
+  await state.flush(true);
+  const scannedIds = targets
+    .map((t) => t.categoryId)
+    .filter((id) => !state.failedCategoryIds.has(id));
+  if (scannedIds.length > 0) {
+    const gone = await db
+      .update(productsTable)
+      .set({ inStock: false })
+      .where(
+        and(
+          eq(productsTable.inStock, true),
+          inArray(productsTable.categoryId, scannedIds),
+          or(isNull(productsTable.lastSeenAt), lt(productsTable.lastSeenAt, runStart)),
+        ),
+      )
+      .returning({ id: productsTable.id });
+    state.wentOutOfStock = gone.length;
+  }
+
+  state.currentStep =
+    state.failedCategoryIds.size > 0
+      ? `Готово, але ${state.failedCategoryIds.size} категорій не відповіли`
+      : "Готово";
+  await state.flush(true);
+}
+
+export async function startSync(trigger: "manual" | "scheduled"): Promise<SyncRunRow | null> {
+  if (activeRunId !== null) return null;
+  const runStart = new Date();
+  const [run] = await db
+    .insert(syncRunsTable)
+    .values({ trigger, status: "running", startedAt: runStart, currentStep: "Старт" })
+    .returning();
+  activeRunId = run!.id;
+  const runId = run!.id;
+  logger.info({ runId, trigger }, "Sync started");
+
+  void executeRun(runId, runStart)
+    .then(async () => {
+      await db
+        .update(syncRunsTable)
+        .set({ status: "success", finishedAt: new Date() })
+        .where(eq(syncRunsTable.id, runId));
+      logger.info({ runId }, "Sync finished");
+    })
+    .catch(async (err: unknown) => {
+      logger.error({ err, runId }, "Sync failed");
+      await db
+        .update(syncRunsTable)
+        .set({
+          status: "failed",
+          finishedAt: new Date(),
+          errorMessage: err instanceof Error ? err.message : String(err),
+        })
+        .where(eq(syncRunsTable.id, runId));
+    })
+    .finally(() => {
+      activeRunId = null;
+    });
+
+  return run!;
+}
+
+export async function getCurrentRun(): Promise<SyncRunRow | null> {
+  if (activeRunId === null) return null;
+  const [row] = await db.select().from(syncRunsTable).where(eq(syncRunsTable.id, activeRunId));
+  return row ?? null;
+}
+
+export async function getLastFinishedRun(): Promise<SyncRunRow | null> {
+  const [row] = await db
+    .select()
+    .from(syncRunsTable)
+    .where(sql`${syncRunsTable.status} <> 'running'`)
+    .orderBy(desc(syncRunsTable.startedAt))
+    .limit(1);
+  return row ?? null;
+}
+
+/** Next scheduled run time (Kyiv time based). */
+export function nextScheduledAt(autoSyncEnabled: boolean, hour: number, lastRunDay: string | null): Date | null {
+  if (!autoSyncEnabled) return null;
+  const now = new Date();
+  const { day } = kyivNow(now);
+  const local = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Kyiv" })).getTime();
+  const utc = new Date(now.toLocaleString("en-US", { timeZone: "UTC" })).getTime();
+  const offsetMs = local - utc;
+  const [y, m, d] = day.split("-").map(Number) as [number, number, number];
+  let target = Date.UTC(y, m - 1, d, hour, 0, 0) - offsetMs;
+  if (lastRunDay === day) target += 24 * 3600_000;
+  else if (target < now.getTime()) target = now.getTime() + 5 * 60_000;
+  return new Date(target);
+}
+
+async function lastRunKyivDay(): Promise<string | null> {
+  const [row] = await db
+    .select({ startedAt: syncRunsTable.startedAt })
+    .from(syncRunsTable)
+    .orderBy(desc(syncRunsTable.startedAt))
+    .limit(1);
+  return row ? kyivNow(row.startedAt).day : null;
+}
+
+export { lastRunKyivDay };
+
+async function schedulerTick() {
+  try {
+    if (activeRunId !== null) return;
+    const settings = await getSettings();
+    if (!settings.autoSyncEnabled) return;
+    const { hour, day } = kyivNow();
+    if (hour < settings.autoSyncHour) return;
+    if ((await lastRunKyivDay()) === day) return;
+    await startSync("scheduled");
+  } catch (err) {
+    logger.error({ err }, "Sync scheduler tick failed");
+  }
+}
+
+export async function initSync() {
+  // Runs interrupted by a restart can never finish.
+  await db
+    .update(syncRunsTable)
+    .set({ status: "failed", finishedAt: new Date(), errorMessage: "Сервер перезапустився під час синхронізації" })
+    .where(eq(syncRunsTable.status, "running"));
+  await getSettings();
+  try {
+    await ensureSources();
+  } catch (err) {
+    logger.warn({ err }, "Could not load supplier categories on startup");
+  }
+  setInterval(() => void schedulerTick(), 5 * 60_000);
+  setTimeout(() => void schedulerTick(), 20_000);
+}

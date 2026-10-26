@@ -127,8 +127,13 @@ class RunState {
 }
 
 async function saveProducts(state: RunState, target: CrawlTarget, items: ListedProduct[], runStart: Date) {
-  const fresh = items.filter((p) => !state.seenSkus.has(p.sku));
-  for (const p of fresh) state.seenSkus.add(p.sku);
+  // A listing page can repeat the same product; one upsert may touch each row only once.
+  const fresh: ListedProduct[] = [];
+  for (const p of items) {
+    if (state.seenSkus.has(p.sku)) continue;
+    state.seenSkus.add(p.sku);
+    fresh.push(p);
+  }
   if (fresh.length === 0) return;
 
   const existing = await db
@@ -195,6 +200,13 @@ async function saveProducts(state: RunState, target: CrawlTarget, items: ListedP
   void runStart;
 }
 
+/** Short error text — DB errors otherwise dump every query parameter into the log. */
+function errorText(err: unknown): string {
+  const e = err as { message?: string; cause?: { message?: string } };
+  const msg = e?.cause?.message ?? e?.message ?? String(err);
+  return msg.length > 300 ? `${msg.slice(0, 300)}…` : msg;
+}
+
 async function pool<T>(items: T[], worker: (item: T) => Promise<void>) {
   let index = 0;
   const runners = Array.from({ length: Math.min(CONCURRENCY, items.length) }, async () => {
@@ -251,14 +263,14 @@ async function executeRun(runId: number, runStart: Date) {
   await pool(targets, async (target) => {
     try {
       const page = parseListing(await fetchHtml(listingPagePath(target.path, 0)));
-      await saveProducts(state, target, page.products, runStart);
       for (let off = PAGE_SIZE; off <= page.maxOffset; off += PAGE_SIZE) {
         followUps.push({ target, offset: off });
       }
       state.pagesTotal += Math.floor(page.maxOffset / PAGE_SIZE);
+      await saveProducts(state, target, page.products, runStart);
     } catch (err) {
       state.failedCategoryIds.add(target.categoryId);
-      logger.warn({ err, path: target.path }, "Sync: category page failed");
+      logger.warn({ error: errorText(err), path: target.path }, "Sync: category page failed");
     }
     state.pagesScanned++;
     await state.flush();
@@ -272,7 +284,7 @@ async function executeRun(runId: number, runStart: Date) {
       await saveProducts(state, target, page.products, runStart);
     } catch (err) {
       state.failedCategoryIds.add(target.categoryId);
-      logger.warn({ err, path: target.path, offset }, "Sync: listing page failed");
+      logger.warn({ error: errorText(err), path: target.path, offset }, "Sync: listing page failed");
     }
     state.pagesScanned++;
     await state.flush();

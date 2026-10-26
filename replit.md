@@ -32,7 +32,7 @@ Online baby-goods store (Ukrainian UI) that resells the warehouse stock of suppl
 - Catalog comes from scraping toysi.ua HTML listings (52/page, `/offsetN/` pagination). Products of fully scanned categories not seen in a run become out of stock; failed categories are left untouched.
 - Retail price = supplier price × (1 + markup%) (ceil if rounding) unless the owner sets a price override. Products with no known price are hidden from the store.
 - Product images are hotlinked from toysi.ua; descriptions/extra photos are fetched lazily on first product view.
-- Only supplier categories enabled in admin (sync_sources) are imported and shown.
+- Only supplier categories enabled in admin (sync_sources) are imported and shown. All 20 are enabled: full sync ≈ 1400 listing pages, ~62k products (~24k in stock), ~15 min.
 
 ## Product
 

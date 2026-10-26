@@ -156,6 +156,16 @@ function clean(text: string | undefined | null): string {
   return (text ?? "").replace(/\s+/g, " ").trim();
 }
 
+/** Supplier sometimes names groups like "NEW: ПОБУТОВА ХІМІЯ"; shoppers should see "Побутова хімія". */
+function categoryName(text: string | undefined | null): string {
+  const name = clean(text).replace(/^NEW:\s*/i, "");
+  if (name === name.toUpperCase() && /[A-ZА-ЯІЇЄҐ]/.test(name)) {
+    const lower = name.toLowerCase();
+    return lower.charAt(0).toUpperCase() + lower.slice(1);
+  }
+  return name;
+}
+
 export function parseCategoryTree(html: string): SupplierGroup[] {
   const root = parse(html);
   const groups: SupplierGroup[] = [];
@@ -178,10 +188,10 @@ export function parseCategoryTree(html: string): SupplierGroup[] {
         const a = subLi.querySelector("a");
         const subHref = a?.getAttribute("href");
         if (!subId || !a || !subHref) continue;
-        children.push({ supplierCatId: subId, name: clean(a.text), path: subHref });
+        children.push({ supplierCatId: subId, name: categoryName(a.text), path: subHref });
       }
     }
-    groups.push({ supplierCatId: id, name: clean(link.text), path: href, children });
+    groups.push({ supplierCatId: id, name: categoryName(link.text), path: href, children });
   }
   return groups;
 }

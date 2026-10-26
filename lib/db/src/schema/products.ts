@@ -33,6 +33,9 @@ export const productsTable = pgTable(
     isActive: boolean("is_active").notNull().default(true),
     isFeatured: boolean("is_featured").notNull().default(false),
     salesCount: integer("sales_count").notNull().default(0),
+    seoTitle: text("seo_title"),
+    seoDescription: text("seo_description"),
+    seoUpdatedAt: timestamp("seo_updated_at", { withTimezone: true }),
     detailsFetchedAt: timestamp("details_fetched_at", { withTimezone: true }),
     firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
@@ -49,3 +52,17 @@ export const productsTable = pgTable(
 );
 
 export type ProductRow = typeof productsTable.$inferSelect;
+
+/** Supplier purchase price changes detected during sync. */
+export const priceChangesTable = pgTable(
+  "price_changes",
+  {
+    id: serial("id").primaryKey(),
+    productId: integer("product_id").notNull(),
+    oldPrice: numeric("old_price", { precision: 12, scale: 2, mode: "number" }).notNull(),
+    newPrice: numeric("new_price", { precision: 12, scale: 2, mode: "number" }).notNull(),
+    changedAt: timestamp("changed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("price_changes_changed_idx").on(t.changedAt), index("price_changes_product_idx").on(t.productId)],
+);
+export type PriceChangeRow = typeof priceChangesTable.$inferSelect;

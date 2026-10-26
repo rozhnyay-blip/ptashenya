@@ -5,12 +5,14 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ListAdminProductsSort } from './listAdminProductsSort';
 import type { ListAdminProductsStock } from './listAdminProductsStock';
 
 export type ListAdminProductsParams = {
 search?: string;
 categoryId?: number;
 stock?: ListAdminProductsStock;
+sort?: ListAdminProductsSort;
 /**
  * @minimum 1
  */

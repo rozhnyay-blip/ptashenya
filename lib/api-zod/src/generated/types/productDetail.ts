@@ -16,6 +16,10 @@ export type ProductDetail = Product & ({
   article?: string | null;
   /** @nullable */
   description?: string | null;
+  /** @nullable */
+  seoTitle?: string | null;
+  /** @nullable */
+  seoDescription?: string | null;
   images: string[];
   breadcrumbs: CategoryRef[];
 });

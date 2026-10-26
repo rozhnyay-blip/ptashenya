@@ -40,6 +40,17 @@ export const settingsTable = pgTable("settings", {
     .notNull()
     .default(0),
   freeShippingFrom: numeric("free_shipping_from", { precision: 12, scale: 2, mode: "number" }),
+  seoTitleTemplate: text("seo_title_template")
+    .notNull()
+    .default("{name} — купити за {price} грн | {store}"),
+  seoDescriptionTemplate: text("seo_description_template")
+    .notNull()
+    .default(
+      "{name} за {price} грн в інтернет-магазині {store}. {category}. Доставка Новою Поштою по всій Україні, оплата при отриманні.",
+    ),
+  seoAutoAfterSync: boolean("seo_auto_after_sync").notNull().default(true),
+  seoLastRunAt: timestamp("seo_last_run_at", { withTimezone: true }),
+  seoLastRunCount: integer("seo_last_run_count"),
 });
 
 export type SyncRunRow = typeof syncRunsTable.$inferSelect;

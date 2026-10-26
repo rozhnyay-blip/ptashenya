@@ -2,6 +2,7 @@ import {
   db,
   categoriesTable,
   productsTable,
+  priceChangesTable,
   syncRunsTable,
   syncSourcesTable,
   type SyncRunRow,
@@ -9,6 +10,7 @@ import {
 import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { logger } from "./logger";
 import { getSettings, kyivNow } from "./settings";
+import { runSeo } from "./seo";
 import {
   DEFAULT_SOURCE_CAT_ID,
   SUPPLIER_ROOT_PATH,
@@ -137,10 +139,22 @@ async function saveProducts(state: RunState, target: CrawlTarget, items: ListedP
   if (fresh.length === 0) return;
 
   const existing = await db
-    .select({ sku: productsTable.sku, inStock: productsTable.inStock })
+    .select({
+      id: productsTable.id,
+      sku: productsTable.sku,
+      inStock: productsTable.inStock,
+      supplierPrice: productsTable.supplierPrice,
+    })
     .from(productsTable)
     .where(inArray(productsTable.sku, fresh.map((p) => p.sku)));
   const existingMap = new Map(existing.map((e) => [e.sku, e.inStock]));
+  const priceChanges = [];
+  for (const e of existing) {
+    const next = fresh.find((p) => p.sku === e.sku)?.price ?? null;
+    if (next !== null && e.supplierPrice !== null && Math.abs(next - e.supplierPrice) >= 0.01) {
+      priceChanges.push({ productId: e.id, oldPrice: e.supplierPrice, newPrice: next });
+    }
+  }
 
   const now = new Date();
   const available = (p: ListedProduct) => (p.stockQty === null ? p.price !== null : p.stockQty > 0);
@@ -185,6 +199,8 @@ async function saveProducts(state: RunState, target: CrawlTarget, items: ListedP
         lastSeenAt: now,
       },
     });
+
+  if (priceChanges.length > 0) await db.insert(priceChangesTable).values(priceChanges);
 
   for (const p of fresh) {
     state.productsSeen++;
@@ -313,6 +329,13 @@ async function executeRun(runId: number, runStart: Date) {
       )
       .returning({ id: productsTable.id });
     state.wentOutOfStock += gone.length;
+  }
+
+  const settings = await getSettings();
+  if (settings.seoAutoAfterSync) {
+    state.currentStep = "Оновлюю SEO товарів";
+    await state.flush(true);
+    await runSeo().catch((err: unknown) => logger.warn({ err }, "Auto SEO after sync failed"));
   }
 
   state.currentStep =

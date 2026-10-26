@@ -73,6 +73,10 @@ export type ProductDetail = Product & ({
   article?: string | null;
   /** @nullable */
   description?: string | null;
+  /** @nullable */
+  seoTitle?: string | null;
+  /** @nullable */
+  seoDescription?: string | null;
   images: string[];
   breadcrumbs: CategoryRef[];
 });
@@ -343,6 +347,23 @@ export type AdminProduct = Product & ({
   firstSeenAt: string;
   /** @nullable */
   lastSeenAt: string | null;
+  /**
+     * Retail minus purchase price
+     * @nullable
+     */
+  profitPerUnit?: number | null;
+  /**
+     * Retail price times units in stock
+     * @nullable
+     */
+  stockValue?: number | null;
+  /**
+     * Profit if the whole stock is sold
+     * @nullable
+     */
+  stockProfit?: number | null;
+  /** @nullable */
+  seoTitle?: string | null;
 });
 
 export interface AdminProductPage {
@@ -426,6 +447,151 @@ export interface SyncSourcesInput {
   enabledIds: string[];
 }
 
+export interface ProductsSummary {
+  /** Products matching the filter */
+  positions: number;
+  /** Of them sellable with known stock */
+  positionsWithStock: number;
+  unitsInStock: number;
+  /** Purchase cost of all units in stock */
+  costValue: number;
+  /** Revenue if every unit is sold at current prices */
+  retailValue: number;
+  profit: number;
+  /** Profit as percent of revenue */
+  marginPercent: number;
+  /** Current store markup */
+  markupPercent: number;
+}
+
+export type BulkProductActionAction = typeof BulkProductActionAction[keyof typeof BulkProductActionAction];
+
+
+export const BulkProductActionAction = {
+  hide: 'hide',
+  show: 'show',
+  feature: 'feature',
+  unfeature: 'unfeature',
+  set_price: 'set_price',
+  reset_price: 'reset_price',
+} as const;
+
+export interface BulkProductAction {
+  /**
+     * @minItems 1
+     * @maxItems 200
+     */
+  ids: number[];
+  action: BulkProductActionAction;
+  /** Required for set_price */
+  price?: number;
+}
+
+export interface BulkResult {
+  updated: number;
+}
+
+export interface InventoryCategory {
+  categoryId: number;
+  name: string;
+  positions: number;
+  units: number;
+  costValue: number;
+  retailValue: number;
+  profit: number;
+}
+
+export interface InventoryReport {
+  positionsInStock: number;
+  unitsInStock: number;
+  costValue: number;
+  retailValue: number;
+  profit: number;
+  marginPercent: number;
+  markupPercent: number;
+  categories: InventoryCategory[];
+  lowStockBestsellers: AdminProduct[];
+}
+
+export interface PriceChange {
+  id: number;
+  productId: number;
+  productName: string;
+  sku: string;
+  /** @nullable */
+  imageUrl: string | null;
+  /** Previous purchase price */
+  oldPrice: number;
+  /** New purchase price */
+  newPrice: number;
+  changePercent: number;
+  /** Current store price */
+  retailPrice: number;
+  inStock: boolean;
+  changedAt: string;
+}
+
+export interface PriceChangeReport {
+  items: PriceChange[];
+  /** Price increases in the last 30 days */
+  up30d: number;
+  /** Price decreases in the last 30 days */
+  down30d: number;
+}
+
+export interface SeoSample {
+  id: number;
+  name: string;
+  category: string;
+  price: number;
+  sku: string;
+  /** @nullable */
+  article: string | null;
+  /** @nullable */
+  seoTitle: string | null;
+  /** @nullable */
+  seoDescription: string | null;
+}
+
+export interface SeoStatus {
+  titleTemplate: string;
+  descriptionTemplate: string;
+  /** Regenerate SEO automatically after each warehouse sync */
+  autoAfterSync: boolean;
+  /** @nullable */
+  lastRunAt: string | null;
+  /** @nullable */
+  lastRunCount: number | null;
+  productsInStock: number;
+  /** In-stock products that already have SEO */
+  productsWithSeo: number;
+  storeName: string;
+  samples: SeoSample[];
+  /** Path of the sitemap relative to the site root */
+  sitemapPath: string;
+  placeholders: string[];
+}
+
+export interface SeoSettingsInput {
+  /**
+     * @minLength 3
+     * @maxLength 200
+     */
+  titleTemplate?: string;
+  /**
+     * @minLength 3
+     * @maxLength 400
+     */
+  descriptionTemplate?: string;
+  autoAfterSync?: boolean;
+}
+
+export interface SeoRunResult {
+  updated: number;
+  durationMs: number;
+  lastRunAt: string;
+}
+
 export type ListProductsParams = {
 search?: string;
 categoryId?: number;
@@ -486,6 +652,7 @@ export type ListAdminProductsParams = {
 search?: string;
 categoryId?: number;
 stock?: ListAdminProductsStock;
+sort?: ListAdminProductsSort;
 /**
  * @minimum 1
  */
@@ -505,5 +672,52 @@ export const ListAdminProductsStock = {
   in_stock: 'in_stock',
   out_of_stock: 'out_of_stock',
   hidden: 'hidden',
+} as const;
+
+export type ListAdminProductsSort = typeof ListAdminProductsSort[keyof typeof ListAdminProductsSort];
+
+
+export const ListAdminProductsSort = {
+  newest: 'newest',
+  profit_desc: 'profit_desc',
+  stock_value_desc: 'stock_value_desc',
+  price_asc: 'price_asc',
+  price_desc: 'price_desc',
+  stock_desc: 'stock_desc',
+  sales_desc: 'sales_desc',
+} as const;
+
+export type GetAdminProductsSummaryParams = {
+search?: string;
+categoryId?: number;
+stock?: GetAdminProductsSummaryStock;
+};
+
+export type GetAdminProductsSummaryStock = typeof GetAdminProductsSummaryStock[keyof typeof GetAdminProductsSummaryStock];
+
+
+export const GetAdminProductsSummaryStock = {
+  all: 'all',
+  in_stock: 'in_stock',
+  out_of_stock: 'out_of_stock',
+  hidden: 'hidden',
+} as const;
+
+export type ListAdminPriceChangesParams = {
+direction?: ListAdminPriceChangesDirection;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: number;
+};
+
+export type ListAdminPriceChangesDirection = typeof ListAdminPriceChangesDirection[keyof typeof ListAdminPriceChangesDirection];
+
+
+export const ListAdminPriceChangesDirection = {
+  all: 'all',
+  up: 'up',
+  down: 'down',
 } as const;
 

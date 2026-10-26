@@ -19,4 +19,21 @@ export type AdminProduct = Product & ({
   firstSeenAt: Date;
   /** @nullable */
   lastSeenAt: Date | null;
+  /**
+     * Retail minus purchase price
+     * @nullable
+     */
+  profitPerUnit?: number | null;
+  /**
+     * Retail price times units in stock
+     * @nullable
+     */
+  stockValue?: number | null;
+  /**
+     * Profit if the whole stock is sold
+     * @nullable
+     */
+  stockProfit?: number | null;
+  /** @nullable */
+  seoTitle?: string | null;
 });

@@ -26,6 +26,8 @@ import OrderDetailPage from "@/pages/admin/order-detail";
 import ProductsPage from "@/pages/admin/products";
 import SyncPage from "@/pages/admin/sync";
 import SettingsPage from "@/pages/admin/settings";
+import SeoPage from "@/pages/admin/seo";
+import PricesPage from "@/pages/admin/prices";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false, retry: 1 } } });
 
@@ -135,6 +137,8 @@ function AdminRoutes() {
           <Route path="/admin/products" component={ProductsPage} />
           <Route path="/admin/sync" component={SyncPage} />
           <Route path="/admin/settings" component={SettingsPage} />
+          <Route path="/admin/seo" component={SeoPage} />
+          <Route path="/admin/prices" component={PricesPage} />
           <Route component={NotFound} />
         </Switch>
       </RoutedErrorBoundary>

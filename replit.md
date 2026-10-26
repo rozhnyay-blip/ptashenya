@@ -32,12 +32,16 @@ Online baby-goods store (Ukrainian UI) that resells the warehouse stock of suppl
 - Catalog comes from scraping toysi.ua HTML listings (52/page, `/offsetN/` pagination). Products of fully scanned categories not seen in a run become out of stock; failed categories are left untouched.
 - Retail price = supplier price × (1 + markup%) (ceil if rounding) unless the owner sets a price override. Products with no known price are hidden from the store.
 - Product images are hotlinked from toysi.ua; descriptions/extra photos are fetched lazily on first product view.
+- SEO: per-product seo_title/seo_description are generated in ONE SQL UPDATE from owner templates (settings) — `src/lib/seo.ts`; run from admin SEO page and automatically after each sync (toggle). Sitemap served at `/api/sitemap.xml` (origin taken from request host). Storefront sets title/meta/OG/canonical/JSON-LD client-side via `useSeo`.
+- Supplier purchase price changes are recorded in `price_changes` during sync (shown in admin "Ціни постачальника").
+- Admin money figures (stock value, potential profit) are computed over the supplier's available stock — the owner dropships, so it is "if all available stock is sold", approximate because supplier caps some quantities.
+- CSV exports (`/api/admin/export/*.csv`) are plain links authenticated by the Clerk session cookie; semicolon + BOM for Ukrainian Excel. Not in OpenAPI.
 - Only supplier categories enabled in admin (sync_sources) are imported and shown. All 20 are enabled: full sync ≈ 1400 listing pages, ~62k products (~24k in stock), ~15 min.
 
 ## Product
 
 - Storefront: catalog with search/filters, product pages, cart, checkout without account (Nova Poshta/Ukrposhta/courier/pickup, COD or card transfer), order tracking by number+phone.
-- Admin (/admin): dashboard KPIs and charts, orders workflow, product visibility/featured/price override, settings (markup, min order), supplier sync (manual + daily at chosen Kyiv hour).
+- Admin (/admin): dashboard KPIs, charts, warehouse value/profit by category; orders workflow + Excel export; products with profit columns, money summary per filter, what-if markup calculator, bulk actions, Excel export; SEO center; supplier price changes; settings; supplier sync (manual + daily); Ctrl+K command palette; new-order alerts.
 
 ## User preferences
 

@@ -24,11 +24,16 @@ import type {
   AdminDashboard,
   AdminProduct,
   AdminProductPage,
+  BulkProductAction,
+  BulkResult,
   Category,
   CategoryStat,
+  GetAdminProductsSummaryParams,
   GetAdminSalesChartParams,
   HealthStatus,
+  InventoryReport,
   ListAdminOrdersParams,
+  ListAdminPriceChangesParams,
   ListAdminProductsParams,
   ListProductsParams,
   LookupOrderParams,
@@ -37,11 +42,16 @@ import type {
   OrderInput,
   OrderPage,
   OrderUpdate,
+  PriceChangeReport,
   Product,
   ProductDetail,
   ProductPage,
   ProductUpdate,
+  ProductsSummary,
   SalesPoint,
+  SeoRunResult,
+  SeoSettingsInput,
+  SeoStatus,
   StoreSettings,
   StoreSettingsInput,
   StorefrontHighlights,
@@ -1523,6 +1533,578 @@ export function useListAdminProducts<TData = Awaited<ReturnType<typeof listAdmin
 
 
 
+
+export const getGetAdminProductsSummaryUrl = (params?: GetAdminProductsSummaryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/products/summary?${stringifiedParams}` : `/api/admin/products/summary`
+}
+
+/**
+ * @summary Stock value and potential profit for the products matching the filter
+ */
+export const getAdminProductsSummary = async (params?: GetAdminProductsSummaryParams, options?: Parameters<typeof customFetch>[1]): Promise<ProductsSummary> => {
+
+  return customFetch<ProductsSummary>(getGetAdminProductsSummaryUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminProductsSummaryQueryKey = (params?: GetAdminProductsSummaryParams,) => {
+    return [
+    `/api/admin/products/summary`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAdminProductsSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getAdminProductsSummary>>, TError = ErrorType<unknown>>(params?: GetAdminProductsSummaryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminProductsSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminProductsSummaryQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminProductsSummary>>> = ({ signal }) => getAdminProductsSummary(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminProductsSummary>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminProductsSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminProductsSummary>>>
+export type GetAdminProductsSummaryQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Stock value and potential profit for the products matching the filter
+ */
+
+export function useGetAdminProductsSummary<TData = Awaited<ReturnType<typeof getAdminProductsSummary>>, TError = ErrorType<unknown>>(
+ params?: GetAdminProductsSummaryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminProductsSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminProductsSummaryQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getBulkUpdateAdminProductsUrl = () => {
+
+
+
+
+  return `/api/admin/products/bulk`
+}
+
+/**
+ * @summary Apply one action to many products at once
+ */
+export const bulkUpdateAdminProducts = async (bulkProductAction: BulkProductAction, options?: Parameters<typeof customFetch>[1]): Promise<BulkResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<BulkResult>(getBulkUpdateAdminProductsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(bulkProductAction)
+  }
+);}
+
+
+
+
+
+export const getBulkUpdateAdminProductsMutationKey = () => ['bulkUpdateAdminProducts'] as const;
+
+export const getBulkUpdateAdminProductsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateAdminProducts>>, TError,BulkUpdateAdminProductsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateAdminProducts>>, TError,BulkUpdateAdminProductsMutationVariables, TContext> => {
+
+const mutationKey = getBulkUpdateAdminProductsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkUpdateAdminProducts>>, BulkUpdateAdminProductsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  bulkUpdateAdminProducts(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkUpdateAdminProductsMutationResult = NonNullable<Awaited<ReturnType<typeof bulkUpdateAdminProducts>>>
+    export type BulkUpdateAdminProductsMutationBody = BodyType<BulkProductAction>
+    export type BulkUpdateAdminProductsMutationError = ErrorType<unknown>
+    export type BulkUpdateAdminProductsMutationVariables = {data: BodyType<BulkProductAction>}
+
+    /**
+ * @summary Apply one action to many products at once
+ */
+export const useBulkUpdateAdminProducts = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateAdminProducts>>, TError,BulkUpdateAdminProductsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof bulkUpdateAdminProducts>>,
+        TError,
+        BulkUpdateAdminProductsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getBulkUpdateAdminProductsMutationOptions(options));
+    }
+
+export const getGetAdminInventoryUrl = () => {
+
+
+
+
+  return `/api/admin/inventory`
+}
+
+/**
+ * @summary Warehouse value, potential profit by category, low-stock bestsellers
+ */
+export const getAdminInventory = async ( options?: Parameters<typeof customFetch>[1]): Promise<InventoryReport> => {
+
+  return customFetch<InventoryReport>(getGetAdminInventoryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminInventoryQueryKey = () => {
+    return [
+    `/api/admin/inventory`
+    ] as const;
+    }
+
+
+export const getGetAdminInventoryQueryOptions = <TData = Awaited<ReturnType<typeof getAdminInventory>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminInventory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminInventoryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminInventory>>> = ({ signal }) => getAdminInventory({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminInventory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminInventoryQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminInventory>>>
+export type GetAdminInventoryQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Warehouse value, potential profit by category, low-stock bestsellers
+ */
+
+export function useGetAdminInventory<TData = Awaited<ReturnType<typeof getAdminInventory>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminInventory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminInventoryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAdminPriceChangesUrl = (params?: ListAdminPriceChangesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/price-changes?${stringifiedParams}` : `/api/admin/price-changes`
+}
+
+/**
+ * @summary Supplier purchase price changes detected by sync
+ */
+export const listAdminPriceChanges = async (params?: ListAdminPriceChangesParams, options?: Parameters<typeof customFetch>[1]): Promise<PriceChangeReport> => {
+
+  return customFetch<PriceChangeReport>(getListAdminPriceChangesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminPriceChangesQueryKey = (params?: ListAdminPriceChangesParams,) => {
+    return [
+    `/api/admin/price-changes`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminPriceChangesQueryOptions = <TData = Awaited<ReturnType<typeof listAdminPriceChanges>>, TError = ErrorType<unknown>>(params?: ListAdminPriceChangesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminPriceChanges>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminPriceChangesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminPriceChanges>>> = ({ signal }) => listAdminPriceChanges(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminPriceChanges>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminPriceChangesQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminPriceChanges>>>
+export type ListAdminPriceChangesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Supplier purchase price changes detected by sync
+ */
+
+export function useListAdminPriceChanges<TData = Awaited<ReturnType<typeof listAdminPriceChanges>>, TError = ErrorType<unknown>>(
+ params?: ListAdminPriceChangesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminPriceChanges>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminPriceChangesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminSeoUrl = () => {
+
+
+
+
+  return `/api/admin/seo`
+}
+
+/**
+ * @summary SEO templates and coverage
+ */
+export const getAdminSeo = async ( options?: Parameters<typeof customFetch>[1]): Promise<SeoStatus> => {
+
+  return customFetch<SeoStatus>(getGetAdminSeoUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminSeoQueryKey = () => {
+    return [
+    `/api/admin/seo`
+    ] as const;
+    }
+
+
+export const getGetAdminSeoQueryOptions = <TData = Awaited<ReturnType<typeof getAdminSeo>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminSeo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminSeoQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminSeo>>> = ({ signal }) => getAdminSeo({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminSeo>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminSeoQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminSeo>>>
+export type GetAdminSeoQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary SEO templates and coverage
+ */
+
+export function useGetAdminSeo<TData = Awaited<ReturnType<typeof getAdminSeo>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminSeo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminSeoQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateAdminSeoUrl = () => {
+
+
+
+
+  return `/api/admin/seo`
+}
+
+/**
+ * @summary Update SEO templates
+ */
+export const updateAdminSeo = async (seoSettingsInput: SeoSettingsInput, options?: Parameters<typeof customFetch>[1]): Promise<SeoStatus> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<SeoStatus>(getUpdateAdminSeoUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(seoSettingsInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateAdminSeoMutationKey = () => ['updateAdminSeo'] as const;
+
+export const getUpdateAdminSeoMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminSeo>>, TError,UpdateAdminSeoMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAdminSeo>>, TError,UpdateAdminSeoMutationVariables, TContext> => {
+
+const mutationKey = getUpdateAdminSeoMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAdminSeo>>, UpdateAdminSeoMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateAdminSeo(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAdminSeoMutationResult = NonNullable<Awaited<ReturnType<typeof updateAdminSeo>>>
+    export type UpdateAdminSeoMutationBody = BodyType<SeoSettingsInput>
+    export type UpdateAdminSeoMutationError = ErrorType<unknown>
+    export type UpdateAdminSeoMutationVariables = {data: BodyType<SeoSettingsInput>}
+
+    /**
+ * @summary Update SEO templates
+ */
+export const useUpdateAdminSeo = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminSeo>>, TError,UpdateAdminSeoMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAdminSeo>>,
+        TError,
+        UpdateAdminSeoMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateAdminSeoMutationOptions(options));
+    }
+
+export const getRunAdminSeoUrl = () => {
+
+
+
+
+  return `/api/admin/seo/run`
+}
+
+/**
+ * @summary Regenerate SEO title and description for every product
+ */
+export const runAdminSeo = async ( options?: Parameters<typeof customFetch>[1]): Promise<SeoRunResult> => {
+
+  return customFetch<SeoRunResult>(getRunAdminSeoUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRunAdminSeoMutationKey = () => ['runAdminSeo'] as const;
+
+export const getRunAdminSeoMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runAdminSeo>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runAdminSeo>>, TError,void, TContext> => {
+
+const mutationKey = getRunAdminSeoMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runAdminSeo>>, void> = () => {
+
+
+          return  runAdminSeo(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunAdminSeoMutationResult = NonNullable<Awaited<ReturnType<typeof runAdminSeo>>>
+
+    export type RunAdminSeoMutationError = ErrorType<unknown>
+
+
+    /**
+ * @summary Regenerate SEO title and description for every product
+ */
+export const useRunAdminSeo = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runAdminSeo>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof runAdminSeo>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRunAdminSeoMutationOptions(options));
+    }
 
 export const getUpdateAdminProductUrl = (id: number,) => {
 

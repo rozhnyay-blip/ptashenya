@@ -10,6 +10,7 @@ import { getSettings, retailPriceSql } from "../lib/settings";
 import { toProduct } from "../lib/serialize";
 import { fetchHtml, parseProductDetails } from "../lib/supplier";
 import { getLastFinishedRun } from "../lib/sync";
+import { buildSitemap } from "../lib/seo";
 
 const router: IRouter = Router();
 
@@ -63,6 +64,18 @@ export async function listVisibleCategories() {
   }
   return result.filter((c) => c.productCount > 0);
 }
+
+let sitemapCache: { origin: string; xml: string; expires: number } | null = null;
+
+router.get("/sitemap.xml", async (req, res) => {
+  const host = (req.get("x-forwarded-host") ?? req.get("host") ?? "").split(",")[0]!.trim();
+  const proto = (req.get("x-forwarded-proto") ?? req.protocol).split(",")[0]!.trim();
+  const origin = `${proto}://${host}`;
+  if (!sitemapCache || sitemapCache.origin !== origin || sitemapCache.expires < Date.now()) {
+    sitemapCache = { origin, xml: await buildSitemap(origin), expires: Date.now() + 3600_000 };
+  }
+  res.type("application/xml").send(sitemapCache.xml);
+});
 
 router.get("/categories", async (_req, res) => {
   res.json(await listVisibleCategories());
@@ -198,6 +211,8 @@ router.get("/products/:id", async (req, res) => {
     ...base,
     article: full.article,
     description: full.description,
+    seoTitle: full.seoTitle,
+    seoDescription: full.seoDescription,
     images: [...images],
     breadcrumbs,
   });

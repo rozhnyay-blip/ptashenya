@@ -9,6 +9,7 @@ import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/
 import { Switch } from "@/components/ui/switch";
 import { num, plural } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useSeo } from "@/lib/seo";
 
 const SORTS: { v: ListProductsSort; l: string }[] = [{ v: "popular", l: "Популярні" }, { v: "newest", l: "Новинки" }, { v: "price_asc", l: "Дешевші" }, { v: "price_desc", l: "Дорожчі" }, { v: "name", l: "За назвою" }];
 const LIMIT = 24;
@@ -80,6 +81,13 @@ export default function CatalogPage() {
   const { data, isLoading, isFetching, isError, refetch } = useListProducts(queryParams, { query: { queryKey: getListProductsQueryKey(queryParams), placeholderData: keepPreviousData } });
   const { data: cats = [] } = useListCategories();
   const cat = cats.find((c) => c.id === categoryId);
+  useSeo({
+    title: cat ? `${cat.name} — купити в інтернет-магазині Пташеня` : q ? `Пошук «${q}» — Пташеня` : "Каталог товарів для дітей — Пташеня",
+    description: cat
+      ? `${cat.name}: ${cat.productCount} товарів у наявності за доступними цінами. Щоденне оновлення складу, доставка Новою Поштою по всій Україні.`
+      : null,
+    path: categoryId ? `/catalog/${categoryId}` : "/catalog",
+  });
   const parent = cat?.parentId ? cats.find((c) => c.id === cat.parentId) : undefined;
   const subcats = cat ? cats.filter((c) => c.parentId === cat.id) : cats.filter((c) => c.parentId === null);
 

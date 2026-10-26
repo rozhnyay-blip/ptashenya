@@ -62,3 +62,16 @@ export function formatPhoneMask(raw: string): string {
   if (d.length > 7) out += " " + d.slice(7, 9);
   return out;
 }
+export function uahCompact(n: number | null | undefined): string {
+  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  const a = Math.abs(n);
+  const f = (v: number, u: string) => v.toLocaleString("uk-UA", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).replace(/\u00a0|\u202f/g, " ") + " " + u + " ₴";
+  if (a >= 1e9) return f(n / 1e9, "млрд");
+  if (a >= 1e6) return f(n / 1e6, "млн");
+  if (a >= 1e4) return f(n / 1e3, "тис");
+  return uah(Math.round(n));
+}
+export function pct(n: number | null | undefined, digits = 1): string {
+  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  return n.toLocaleString("uk-UA", { minimumFractionDigits: digits, maximumFractionDigits: digits }) + "%";
+}

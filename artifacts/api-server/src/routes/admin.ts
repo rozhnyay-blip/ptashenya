@@ -24,7 +24,8 @@ import {
   UpdateSyncSourcesBody,
 } from "@workspace/api-zod";
 import { requireAdmin } from "../middlewares/auth";
-import { getSettings } from "../lib/settings";
+import { getSettings, retailPriceSql } from "../lib/settings";
+import { adminProductFilter } from "../lib/admin-filters";
 import { hasSupplierCredentials } from "../lib/supplier";
 import { toAdminProduct, toOrder, toOrderDetail, toSyncRun } from "../lib/serialize";
 import {
@@ -375,31 +376,36 @@ router.get("/admin/products", async (req, res) => {
   const q = parsed.data;
   const page = q.page ?? 1;
   const limit = q.limit ?? 25;
-  const conds: SQL[] = [];
-  if (q.search && q.search.trim()) {
-    const term = `%${q.search.trim()}%`;
-    conds.push(
-      or(ilike(productsTable.name, term), ilike(productsTable.sku, term), ilike(productsTable.article, term))!,
-    );
-  }
-  if (q.categoryId) {
-    const children = await db
-      .select({ id: categoriesTable.id })
-      .from(categoriesTable)
-      .where(eq(categoriesTable.parentId, q.categoryId));
-    conds.push(inArray(productsTable.categoryId, [q.categoryId, ...children.map((c) => c.id)]));
-  }
-  if (q.stock === "in_stock") conds.push(and(eq(productsTable.inStock, true), eq(productsTable.isActive, true))!);
-  if (q.stock === "out_of_stock") conds.push(eq(productsTable.inStock, false));
-  if (q.stock === "hidden") conds.push(eq(productsTable.isActive, false));
-  const where = conds.length ? and(...conds) : undefined;
+  const where = await adminProductFilter(q);
+  const settingsForSort = await getSettings();
+  const price = retailPriceSql(settingsForSort);
+  const profitExpr = sql`(${price} - coalesce(products.supplier_price, ${price}))`;
+  const qtyExpr = sql`(case when products.in_stock then coalesce(products.stock_qty, 0) else 0 end)`;
+  const orderBy: SQL[] = (() => {
+    switch (q.sort) {
+      case "profit_desc":
+        return [sql`${profitExpr} desc`];
+      case "stock_value_desc":
+        return [sql`${profitExpr} * ${qtyExpr} desc`];
+      case "price_asc":
+        return [sql`${price} asc`];
+      case "price_desc":
+        return [sql`${price} desc`];
+      case "stock_desc":
+        return [sql`${qtyExpr} desc`];
+      case "sales_desc":
+        return [desc(productsTable.salesCount)];
+      default:
+        return [desc(productsTable.firstSeenAt)];
+    }
+  })();
 
   const [rows, totalRows, settings, cats] = await Promise.all([
     db
       .select()
       .from(productsTable)
       .where(where)
-      .orderBy(desc(productsTable.firstSeenAt), desc(productsTable.id))
+      .orderBy(...orderBy, desc(productsTable.id))
       .limit(limit)
       .offset((page - 1) * limit),
     db.select({ total: sql<number>`count(*)::int` }).from(productsTable).where(where),

@@ -10,6 +10,7 @@ import { StateBlock } from "@/components/store/store-layout";
 import { flyToCart, useCart } from "@/lib/cart";
 import { uah } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useSeo } from "@/lib/seo";
 
 export default function ProductPage() {
   const { id: idStr } = useParams<{ id: string }>();
@@ -22,6 +23,31 @@ export default function ProductPage() {
   const [active, setActive] = useState(0);
   const [added, setAdded] = useState(false);
   const btn = useRef<HTMLButtonElement>(null);
+  useSeo({
+    title: p ? (p.seoTitle ?? `${p.name} — купити за ${p.price} грн | Пташеня`) : null,
+    description: p?.seoDescription ?? null,
+    image: p?.imageUrl ?? null,
+    path: `/product/${id}`,
+    jsonLd: p
+      ? {
+          "@context": "https://schema.org",
+          "@type": "Product",
+          name: p.name,
+          sku: p.sku,
+          ...(p.article ? { mpn: p.article } : {}),
+          image: p.images.length ? p.images : p.imageUrl ? [p.imageUrl] : [],
+          ...(p.description ? { description: p.description.slice(0, 5000) } : {}),
+          ...(p.categoryName ? { category: p.categoryName } : {}),
+          offers: {
+            "@type": "Offer",
+            price: p.price,
+            priceCurrency: "UAH",
+            availability: p.inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+            url: window.location.href,
+          },
+        }
+      : null,
+  });
 
   if (isLoading) return (
     <div className="mx-auto grid max-w-7xl gap-8 px-4 pt-8 md:grid-cols-2">

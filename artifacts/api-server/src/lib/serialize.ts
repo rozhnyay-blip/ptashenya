@@ -37,8 +37,16 @@ export function toAdminProduct(
   s: Pick<SettingsRow, "markupPercent" | "roundPrices">,
   categoryName: string | null,
 ) {
+  const base = toProduct(p, s, categoryName);
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  const profitPerUnit = p.supplierPrice !== null && base.price > 0 ? round2(base.price - p.supplierPrice) : null;
+  const qty = p.inStock ? (p.stockQty ?? null) : 0;
   return {
-    ...toProduct(p, s, categoryName),
+    ...base,
+    profitPerUnit,
+    stockValue: qty !== null && base.price > 0 ? round2(base.price * qty) : null,
+    stockProfit: qty !== null && profitPerUnit !== null ? round2(profitPerUnit * qty) : null,
+    seoTitle: p.seoTitle,
     supplierPrice: p.supplierPrice,
     priceOverride: p.priceOverride,
     isActive: p.isActive,

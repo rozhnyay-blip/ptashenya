@@ -321,6 +321,12 @@ paths:
           schema:
             type: string
             enum: [all, in_stock, out_of_stock, hidden]
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [newest, profit_desc, stock_value_desc, price_asc, price_desc, stock_desc, sales_desc]
         - { name: page, in: query, required: false, schema: { type: integer, minimum: 1 } }
         - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100 } }
       responses:
@@ -330,6 +336,124 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminProductPage"
+
+  /admin/products/summary:
+    get:
+      operationId: getAdminProductsSummary
+      tags: [admin]
+      summary: Stock value and potential profit for the products matching the filter
+      parameters:
+        - { name: search, in: query, required: false, schema: { type: string } }
+        - { name: categoryId, in: query, required: false, schema: { type: integer } }
+        - name: stock
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [all, in_stock, out_of_stock, hidden]
+      responses:
+        "200":
+          description: Summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductsSummary"
+
+  /admin/products/bulk:
+    post:
+      operationId: bulkUpdateAdminProducts
+      tags: [admin]
+      summary: Apply one action to many products at once
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkProductAction"
+      responses:
+        "200":
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkResult"
+
+  /admin/inventory:
+    get:
+      operationId: getAdminInventory
+      tags: [admin]
+      summary: Warehouse value, potential profit by category, low-stock bestsellers
+      responses:
+        "200":
+          description: Inventory report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryReport"
+
+  /admin/price-changes:
+    get:
+      operationId: listAdminPriceChanges
+      tags: [admin]
+      summary: Supplier purchase price changes detected by sync
+      parameters:
+        - name: direction
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [all, up, down]
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 200 } }
+      responses:
+        "200":
+          description: Price changes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PriceChangeReport"
+
+  /admin/seo:
+    get:
+      operationId: getAdminSeo
+      tags: [admin]
+      summary: SEO templates and coverage
+      responses:
+        "200":
+          description: SEO status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeoStatus"
+    put:
+      operationId: updateAdminSeo
+      tags: [admin]
+      summary: Update SEO templates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SeoSettingsInput"
+      responses:
+        "200":
+          description: SEO status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeoStatus"
+
+  /admin/seo/run:
+    post:
+      operationId: runAdminSeo
+      tags: [admin]
+      summary: Regenerate SEO title and description for every product
+      responses:
+        "200":
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeoRunResult"
 
   /admin/products/{id}:
     patch:
@@ -514,6 +638,8 @@ components:
           properties:
             article: { type: ["string", "null"], description: "Manufacturer article" }
             description: { type: ["string", "null"] }
+            seoTitle: { type: ["string", "null"] }
+            seoDescription: { type: ["string", "null"] }
             images:
               type: array
               items: { type: string }
@@ -757,6 +883,10 @@ components:
             salesCount: { type: integer }
             firstSeenAt: { type: string, format: date-time }
             lastSeenAt: { type: ["string", "null"], format: date-time }
+            profitPerUnit: { type: ["number", "null"], description: "Retail minus purchase price" }
+            stockValue: { type: ["number", "null"], description: "Retail price times units in stock" }
+            stockProfit: { type: ["number", "null"], description: "Profit if the whole stock is sold" }
+            seoTitle: { type: ["string", "null"] }
 
     AdminProductPage:
       type: object
@@ -860,3 +990,140 @@ components:
         enabledIds:
           type: array
           items: { type: string }
+
+    ProductsSummary:
+      type: object
+      required: [positions, positionsWithStock, unitsInStock, costValue, retailValue, profit, marginPercent, markupPercent]
+      properties:
+        positions: { type: integer, description: "Products matching the filter" }
+        positionsWithStock: { type: integer, description: "Of them sellable with known stock" }
+        unitsInStock: { type: integer }
+        costValue: { type: number, description: "Purchase cost of all units in stock" }
+        retailValue: { type: number, description: "Revenue if every unit is sold at current prices" }
+        profit: { type: number }
+        marginPercent: { type: number, description: "Profit as percent of revenue" }
+        markupPercent: { type: number, description: "Current store markup" }
+
+    BulkProductAction:
+      type: object
+      required: [ids, action]
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items: { type: integer }
+        action:
+          type: string
+          enum: [hide, show, feature, unfeature, set_price, reset_price]
+        price: { type: number, description: "Required for set_price" }
+
+    BulkResult:
+      type: object
+      required: [updated]
+      properties:
+        updated: { type: integer }
+
+    InventoryCategory:
+      type: object
+      required: [categoryId, name, positions, units, costValue, retailValue, profit]
+      properties:
+        categoryId: { type: integer }
+        name: { type: string }
+        positions: { type: integer }
+        units: { type: integer }
+        costValue: { type: number }
+        retailValue: { type: number }
+        profit: { type: number }
+
+    InventoryReport:
+      type: object
+      required: [positionsInStock, unitsInStock, costValue, retailValue, profit, marginPercent, markupPercent, categories, lowStockBestsellers]
+      properties:
+        positionsInStock: { type: integer }
+        unitsInStock: { type: integer }
+        costValue: { type: number }
+        retailValue: { type: number }
+        profit: { type: number }
+        marginPercent: { type: number }
+        markupPercent: { type: number }
+        categories:
+          type: array
+          items: { $ref: "#/components/schemas/InventoryCategory" }
+        lowStockBestsellers:
+          type: array
+          items: { $ref: "#/components/schemas/AdminProduct" }
+
+    PriceChange:
+      type: object
+      required: [id, productId, productName, sku, imageUrl, oldPrice, newPrice, changePercent, retailPrice, inStock, changedAt]
+      properties:
+        id: { type: integer }
+        productId: { type: integer }
+        productName: { type: string }
+        sku: { type: string }
+        imageUrl: { type: ["string", "null"] }
+        oldPrice: { type: number, description: "Previous purchase price" }
+        newPrice: { type: number, description: "New purchase price" }
+        changePercent: { type: number }
+        retailPrice: { type: number, description: "Current store price" }
+        inStock: { type: boolean }
+        changedAt: { type: string, format: date-time }
+
+    PriceChangeReport:
+      type: object
+      required: [items, up30d, down30d]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/PriceChange" }
+        up30d: { type: integer, description: "Price increases in the last 30 days" }
+        down30d: { type: integer, description: "Price decreases in the last 30 days" }
+
+    SeoSample:
+      type: object
+      required: [id, name, category, price, sku, article, seoTitle, seoDescription]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        category: { type: string }
+        price: { type: number }
+        sku: { type: string }
+        article: { type: ["string", "null"] }
+        seoTitle: { type: ["string", "null"] }
+        seoDescription: { type: ["string", "null"] }
+
+    SeoStatus:
+      type: object
+      required: [titleTemplate, descriptionTemplate, autoAfterSync, lastRunAt, lastRunCount, productsInStock, productsWithSeo, storeName, samples, sitemapPath, placeholders]
+      properties:
+        titleTemplate: { type: string }
+        descriptionTemplate: { type: string }
+        autoAfterSync: { type: boolean, description: "Regenerate SEO automatically after each warehouse sync" }
+        lastRunAt: { type: ["string", "null"], format: date-time }
+        lastRunCount: { type: ["integer", "null"] }
+        productsInStock: { type: integer }
+        productsWithSeo: { type: integer, description: "In-stock products that already have SEO" }
+        storeName: { type: string }
+        samples:
+          type: array
+          items: { $ref: "#/components/schemas/SeoSample" }
+        sitemapPath: { type: string, description: "Path of the sitemap relative to the site root" }
+        placeholders:
+          type: array
+          items: { type: string }
+
+    SeoSettingsInput:
+      type: object
+      properties:
+        titleTemplate: { type: string, minLength: 3, maxLength: 200 }
+        descriptionTemplate: { type: string, minLength: 3, maxLength: 400 }
+        autoAfterSync: { type: boolean }
+
+    SeoRunResult:
+      type: object
+      required: [updated, durationMs, lastRunAt]
+      properties:
+        updated: { type: integer }
+        durationMs: { type: integer }
+        lastRunAt: { type: string, format: date-time }

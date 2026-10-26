@@ -106,6 +106,8 @@ export const GetProductResponse = zod.object({
 }).and(zod.object({
   "article": zod.string().nullish().describe('Manufacturer article'),
   "description": zod.string().nullish(),
+  "seoTitle": zod.string().nullish(),
+  "seoDescription": zod.string().nullish(),
   "images": zod.array(zod.string()),
   "breadcrumbs": zod.array(zod.object({
   "id": zod.number().int(),
@@ -559,6 +561,7 @@ export const ListAdminProductsQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
   "categoryId": zod.coerce.number().int().optional(),
   "stock": zod.enum(['all', 'in_stock', 'out_of_stock', 'hidden']).optional(),
+  "sort": zod.enum(['newest', 'profit_desc', 'stock_value_desc', 'price_asc', 'price_desc', 'stock_desc', 'sales_desc']).optional(),
   "page": zod.coerce.number().int().min(1).optional(),
   "limit": zod.coerce.number().int().min(1).max(listAdminProductsQueryLimitMax).optional()
 })
@@ -585,11 +588,213 @@ export const ListAdminProductsResponse = zod.object({
   "supplierUrl": zod.string(),
   "salesCount": zod.number().int(),
   "firstSeenAt": zod.coerce.date(),
-  "lastSeenAt": zod.coerce.date().nullable()
+  "lastSeenAt": zod.coerce.date().nullable(),
+  "profitPerUnit": zod.number().nullish().describe('Retail minus purchase price'),
+  "stockValue": zod.number().nullish().describe('Retail price times units in stock'),
+  "stockProfit": zod.number().nullish().describe('Profit if the whole stock is sold'),
+  "seoTitle": zod.string().nullish()
 }))),
   "total": zod.number().int(),
   "page": zod.number().int(),
   "pages": zod.number().int()
+})
+
+
+/**
+ * @summary Stock value and potential profit for the products matching the filter
+ */
+export const GetAdminProductsSummaryQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
+  "categoryId": zod.coerce.number().int().optional(),
+  "stock": zod.enum(['all', 'in_stock', 'out_of_stock', 'hidden']).optional()
+})
+
+export const GetAdminProductsSummaryResponse = zod.object({
+  "positions": zod.number().int().describe('Products matching the filter'),
+  "positionsWithStock": zod.number().int().describe('Of them sellable with known stock'),
+  "unitsInStock": zod.number().int(),
+  "costValue": zod.number().describe('Purchase cost of all units in stock'),
+  "retailValue": zod.number().describe('Revenue if every unit is sold at current prices'),
+  "profit": zod.number(),
+  "marginPercent": zod.number().describe('Profit as percent of revenue'),
+  "markupPercent": zod.number().describe('Current store markup')
+})
+
+
+/**
+ * @summary Apply one action to many products at once
+ */
+export const bulkUpdateAdminProductsBodyIdsMax = 200;
+
+
+
+export const BulkUpdateAdminProductsBody = zod.object({
+  "ids": zod.array(zod.number().int()).min(1).max(bulkUpdateAdminProductsBodyIdsMax),
+  "action": zod.enum(['hide', 'show', 'feature', 'unfeature', 'set_price', 'reset_price']),
+  "price": zod.number().optional().describe('Required for set_price')
+})
+
+export const BulkUpdateAdminProductsResponse = zod.object({
+  "updated": zod.number().int()
+})
+
+
+/**
+ * @summary Warehouse value, potential profit by category, low-stock bestsellers
+ */
+export const GetAdminInventoryResponse = zod.object({
+  "positionsInStock": zod.number().int(),
+  "unitsInStock": zod.number().int(),
+  "costValue": zod.number(),
+  "retailValue": zod.number(),
+  "profit": zod.number(),
+  "marginPercent": zod.number(),
+  "markupPercent": zod.number(),
+  "categories": zod.array(zod.object({
+  "categoryId": zod.number().int(),
+  "name": zod.string(),
+  "positions": zod.number().int(),
+  "units": zod.number().int(),
+  "costValue": zod.number(),
+  "retailValue": zod.number(),
+  "profit": zod.number()
+})),
+  "lowStockBestsellers": zod.array(zod.object({
+  "id": zod.number().int(),
+  "sku": zod.string().describe('Supplier product code'),
+  "name": zod.string(),
+  "price": zod.number().describe('Retail price in UAH'),
+  "oldPrice": zod.number().nullish().describe('Crossed-out price when on sale'),
+  "inStock": zod.boolean(),
+  "stockQty": zod.number().int().nullish().describe('Units left on the supplier warehouse, when known'),
+  "isNew": zod.boolean(),
+  "isFeatured": zod.boolean().optional(),
+  "imageUrl": zod.string().nullable(),
+  "image2Url": zod.string().nullish(),
+  "categoryId": zod.number().int().nullable(),
+  "categoryName": zod.string().nullable()
+}).and(zod.object({
+  "supplierPrice": zod.number().nullable(),
+  "priceOverride": zod.number().nullish(),
+  "isActive": zod.boolean().describe('False when hidden by the owner'),
+  "supplierUrl": zod.string(),
+  "salesCount": zod.number().int(),
+  "firstSeenAt": zod.coerce.date(),
+  "lastSeenAt": zod.coerce.date().nullable(),
+  "profitPerUnit": zod.number().nullish().describe('Retail minus purchase price'),
+  "stockValue": zod.number().nullish().describe('Retail price times units in stock'),
+  "stockProfit": zod.number().nullish().describe('Profit if the whole stock is sold'),
+  "seoTitle": zod.string().nullish()
+})))
+})
+
+
+/**
+ * @summary Supplier purchase price changes detected by sync
+ */
+export const listAdminPriceChangesQueryLimitMax = 200;
+
+
+
+export const ListAdminPriceChangesQueryParams = zod.object({
+  "direction": zod.enum(['all', 'up', 'down']).optional(),
+  "limit": zod.coerce.number().int().min(1).max(listAdminPriceChangesQueryLimitMax).optional()
+})
+
+export const ListAdminPriceChangesResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.number().int(),
+  "productId": zod.number().int(),
+  "productName": zod.string(),
+  "sku": zod.string(),
+  "imageUrl": zod.string().nullable(),
+  "oldPrice": zod.number().describe('Previous purchase price'),
+  "newPrice": zod.number().describe('New purchase price'),
+  "changePercent": zod.number(),
+  "retailPrice": zod.number().describe('Current store price'),
+  "inStock": zod.boolean(),
+  "changedAt": zod.coerce.date()
+})),
+  "up30d": zod.number().int().describe('Price increases in the last 30 days'),
+  "down30d": zod.number().int().describe('Price decreases in the last 30 days')
+})
+
+
+/**
+ * @summary SEO templates and coverage
+ */
+export const GetAdminSeoResponse = zod.object({
+  "titleTemplate": zod.string(),
+  "descriptionTemplate": zod.string(),
+  "autoAfterSync": zod.boolean().describe('Regenerate SEO automatically after each warehouse sync'),
+  "lastRunAt": zod.coerce.date().nullable(),
+  "lastRunCount": zod.number().int().nullable(),
+  "productsInStock": zod.number().int(),
+  "productsWithSeo": zod.number().int().describe('In-stock products that already have SEO'),
+  "storeName": zod.string(),
+  "samples": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "category": zod.string(),
+  "price": zod.number(),
+  "sku": zod.string(),
+  "article": zod.string().nullable(),
+  "seoTitle": zod.string().nullable(),
+  "seoDescription": zod.string().nullable()
+})),
+  "sitemapPath": zod.string().describe('Path of the sitemap relative to the site root'),
+  "placeholders": zod.array(zod.string())
+})
+
+
+/**
+ * @summary Update SEO templates
+ */
+export const updateAdminSeoBodyTitleTemplateMin = 3;
+export const updateAdminSeoBodyTitleTemplateMax = 200;
+
+export const updateAdminSeoBodyDescriptionTemplateMin = 3;
+export const updateAdminSeoBodyDescriptionTemplateMax = 400;
+
+
+
+export const UpdateAdminSeoBody = zod.object({
+  "titleTemplate": zod.string().min(updateAdminSeoBodyTitleTemplateMin).max(updateAdminSeoBodyTitleTemplateMax).optional(),
+  "descriptionTemplate": zod.string().min(updateAdminSeoBodyDescriptionTemplateMin).max(updateAdminSeoBodyDescriptionTemplateMax).optional(),
+  "autoAfterSync": zod.boolean().optional()
+})
+
+export const UpdateAdminSeoResponse = zod.object({
+  "titleTemplate": zod.string(),
+  "descriptionTemplate": zod.string(),
+  "autoAfterSync": zod.boolean().describe('Regenerate SEO automatically after each warehouse sync'),
+  "lastRunAt": zod.coerce.date().nullable(),
+  "lastRunCount": zod.number().int().nullable(),
+  "productsInStock": zod.number().int(),
+  "productsWithSeo": zod.number().int().describe('In-stock products that already have SEO'),
+  "storeName": zod.string(),
+  "samples": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "category": zod.string(),
+  "price": zod.number(),
+  "sku": zod.string(),
+  "article": zod.string().nullable(),
+  "seoTitle": zod.string().nullable(),
+  "seoDescription": zod.string().nullable()
+})),
+  "sitemapPath": zod.string().describe('Path of the sitemap relative to the site root'),
+  "placeholders": zod.array(zod.string())
+})
+
+
+/**
+ * @summary Regenerate SEO title and description for every product
+ */
+export const RunAdminSeoResponse = zod.object({
+  "updated": zod.number().int(),
+  "durationMs": zod.number().int(),
+  "lastRunAt": zod.coerce.date()
 })
 
 
@@ -627,7 +832,11 @@ export const UpdateAdminProductResponse = zod.object({
   "supplierUrl": zod.string(),
   "salesCount": zod.number().int(),
   "firstSeenAt": zod.coerce.date(),
-  "lastSeenAt": zod.coerce.date().nullable()
+  "lastSeenAt": zod.coerce.date().nullable(),
+  "profitPerUnit": zod.number().nullish().describe('Retail minus purchase price'),
+  "stockValue": zod.number().nullish().describe('Retail price times units in stock'),
+  "stockProfit": zod.number().nullish().describe('Profit if the whole stock is sold'),
+  "seoTitle": zod.string().nullish()
 }))
 
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { keepPreviousData } from "@tanstack/react-query";
-import { Inbox, Search } from "lucide-react";
+import { Download, Inbox, Search } from "lucide-react";
 import { useListAdminOrders, getListAdminOrdersQueryKey, type ListAdminOrdersParams, type OrderStatus } from "@workspace/api-client-react";
 import { PageHead, Panel, StatusPill } from "@/components/admin/admin-layout";
 import { Pager } from "@/components/admin/pager";
@@ -33,7 +33,8 @@ export default function OrdersPage() {
 
   return (
     <div>
-      <PageHead title="Замовлення" sub="Нові замовлення з'являються автоматично" />
+      <PageHead title="Замовлення" sub="Нові замовлення з'являються автоматично"
+        actions={<a href={`${import.meta.env.BASE_URL}api/admin/export/orders.csv${status ? `?status=${status}` : ""}`} download data-testid="link-export-orders" className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-semibold hover:bg-muted"><Download className="h-4 w-4" />Експорт в Excel</a>} />
       <Panel>
         <div className="flex flex-wrap items-center gap-2 border-b border-border p-3">
           <div className="no-scrollbar flex gap-1 overflow-x-auto">

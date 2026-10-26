@@ -10,6 +10,7 @@ import {
 } from "@workspace/api-client-react";
 import { PageHead, Panel, StatusPill } from "@/components/admin/admin-layout";
 import { SyncButton } from "@/components/admin/sync-button";
+import { InventoryPanels } from "@/components/admin/inventory-panels";
 import { ProductImage } from "@/components/store/product-image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { dateTime, num, relTime, uah } from "@/lib/format";
@@ -68,6 +69,8 @@ export default function DashboardPage() {
         <Kpi label="Нових сьогодні" value={num(d.productsNewToday)} sub="товарів зі складу" />
         <Kpi label="Покупців" value={num(d.customersTotal)} sub={`всього ${num(d.ordersTotal)} замовл. · ${uah(d.revenueTotal)}`} />
       </div>
+
+      <InventoryPanels />
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_340px]">
         <Panel title={<span className="flex items-baseline gap-3">Продажі <span className="font-mono text-xs font-normal text-muted-foreground tabular">{uah(chartRevenue)} · {chartOrders} замовл.</span></span>}

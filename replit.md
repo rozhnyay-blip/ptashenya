@@ -40,7 +40,7 @@ Online baby-goods store (Ukrainian UI) that resells the warehouse stock of suppl
 
 ## Product
 
-- Storefront: catalog with search/filters, product pages, cart, checkout without account (Nova Poshta/Ukrposhta/courier/pickup, COD or card transfer), order tracking by number+phone.
+- Storefront: catalog with search/filters, product pages, cart, checkout without account (Nova Poshta only — owner decision; city + any branch/parcel locker picked from the live Nova Poshta directory via /api/delivery/np/*, no API key needed; COD or card transfer), order tracking by number+phone.
 - Admin (/admin): dashboard KPIs, charts, warehouse value/profit by category; orders workflow + Excel export; products with profit columns, money summary per filter, what-if markup calculator, bulk actions, Excel export; SEO center; supplier price changes; settings; supplier sync (manual + daily); Ctrl+K command palette; new-order alerts.
 
 ## User preferences

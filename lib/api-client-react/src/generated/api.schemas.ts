@@ -120,6 +120,38 @@ export const OrderStatus = {
   cancelled: 'cancelled',
 } as const;
 
+export interface NpCity {
+  /** Settlement ref */
+  ref: string;
+  /** e.g. м. Київ */
+  name: string;
+  /** Full label with region */
+  label: string;
+  branches: number;
+}
+
+export type NpBranchKind = typeof NpBranchKind[keyof typeof NpBranchKind];
+
+
+export const NpBranchKind = {
+  branch: 'branch',
+  postomat: 'postomat',
+  point: 'point',
+} as const;
+
+export interface NpBranch {
+  ref: string;
+  number: string;
+  kind: NpBranchKind;
+  /** e.g. Відділення №25 */
+  title: string;
+  address: string;
+}
+
+export interface NpBranchList {
+  items: NpBranch[];
+}
+
 export type DeliveryMethod = typeof DeliveryMethod[keyof typeof DeliveryMethod];
 
 
@@ -620,6 +652,18 @@ export const ListProductsSort = {
   price_desc: 'price_desc',
   name: 'name',
 } as const;
+
+export type SearchNpCitiesParams = {
+/**
+ * @minLength 1
+ */
+q: string;
+};
+
+export type SearchNpBranchesParams = {
+cityRef: string;
+q?: string;
+};
 
 export type LookupOrderParams = {
 number: string;

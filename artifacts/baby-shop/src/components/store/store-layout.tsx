@@ -46,7 +46,7 @@ export function StoreLayout({ children }: { children: ReactNode }) {
     <div className="flex min-h-[100dvh] flex-col">
       <div className="bg-foreground text-background">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-2 text-[12px] font-medium">
-          <span className="flex items-center gap-2"><Truck className="h-3.5 w-3.5 text-secondary" />Відправляємо щодня Новою Поштою та Укрпоштою</span>
+          <span className="flex items-center gap-2"><Truck className="h-3.5 w-3.5 text-secondary" />Відправляємо щодня Новою Поштою</span>
           <Link href="/track" className="hidden underline-offset-4 hover:underline sm:inline" data-testid="link-topbar-track">Де моє замовлення?</Link>
         </div>
       </div>
@@ -82,7 +82,7 @@ export function StoreLayout({ children }: { children: ReactNode }) {
           </div>
           <div className="space-y-3 text-sm">
             <div className="font-display text-xs uppercase tracking-widest text-secondary">Доставка й оплата</div>
-            <p className="text-background/80">Нова Пошта, Укрпошта, кур'єр або самовивіз. Оплата при отриманні чи на карту.</p>
+            <p className="text-background/80">Доставка Новою Поштою у будь-яке відділення чи поштомат. Оплата при отриманні чи на карту.</p>
             <p className="flex items-center gap-2 text-background/80"><Phone className="h-4 w-4" />Передзвонимо після замовлення</p>
           </div>
         </div>

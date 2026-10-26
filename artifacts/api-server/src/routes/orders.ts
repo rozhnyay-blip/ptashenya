@@ -30,6 +30,15 @@ router.post("/orders", async (req, res) => {
     return;
   }
 
+  if (input.deliveryMethod !== "nova_poshta") {
+    res.status(400).json({ error: "Доставляємо лише Новою Поштою" });
+    return;
+  }
+  if (!input.deliveryAddress?.trim()) {
+    res.status(400).json({ error: "Оберіть відділення або поштомат Нової Пошти" });
+    return;
+  }
+
   const qtyById = new Map<number, number>();
   for (const it of input.items) qtyById.set(it.productId, (qtyById.get(it.productId) ?? 0) + it.quantity);
 

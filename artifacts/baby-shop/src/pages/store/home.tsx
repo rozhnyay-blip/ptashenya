@@ -118,7 +118,7 @@ export default function HomePage() {
           <div>
             <h2 className="font-display text-2xl font-bold sm:text-3xl">Як у сусідній крамниці, тільки з величезним складом</h2>
           </div>
-          {[{ i: RefreshCw, t: "Живі залишки", d: "Щодня звіряємось зі складом. Немає в наявності — не продаємо." }, { i: Truck, t: "Швидка відправка", d: "Нова Пошта, Укрпошта, кур'єр або самовивіз." }, { i: ShieldCheck, t: "Оплата при отриманні", d: "Огляньте посилку, а тоді платіть." }].map((x) => (
+          {[{ i: RefreshCw, t: "Живі залишки", d: "Щодня звіряємось зі складом. Немає в наявності — не продаємо." }, { i: Truck, t: "Швидка відправка", d: "Новою Поштою у будь-яке відділення чи поштомат." }, { i: ShieldCheck, t: "Оплата при отриманні", d: "Огляньте посилку, а тоді платіть." }].map((x) => (
             <div key={x.t} className="rounded-2xl bg-background/5 p-5">
               <x.i className="mb-3 h-6 w-6 text-secondary" />
               <div className="font-display text-base font-semibold">{x.t}</div>

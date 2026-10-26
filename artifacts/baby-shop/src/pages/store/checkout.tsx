@@ -1,20 +1,15 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, Building2, Home, Loader2, Lock, Mailbox, Truck, Wallet, CreditCard } from "lucide-react";
-import { useCreateOrder, getGetStorefrontHighlightsQueryKey, type DeliveryMethod, type PaymentMethod } from "@workspace/api-client-react";
+import { AlertCircle, Loader2, Lock, Truck, Wallet, CreditCard } from "lucide-react";
+import { useCreateOrder, getGetStorefrontHighlightsQueryKey, type NpBranch, type NpCity, type PaymentMethod } from "@workspace/api-client-react";
 import { useCart } from "@/lib/cart";
 import { ProductImage } from "@/components/store/product-image";
 import { StateBlock } from "@/components/store/store-layout";
+import { NpBranchPicker, NpCityPicker } from "@/components/store/np-picker";
 import { apiError, formatPhoneMask, phoneDigits, uah } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const DELIVERY: { v: DeliveryMethod; l: string; d: string; icon: typeof Truck; addr: string }[] = [
-  { v: "nova_poshta", l: "Нова Пошта", d: "1–2 дні", icon: Truck, addr: "Номер відділення або поштомату" },
-  { v: "ukrposhta", l: "Укрпошта", d: "3–5 днів, дешевше", icon: Mailbox, addr: "Індекс і адреса відділення" },
-  { v: "courier", l: "Кур'єр", d: "До дверей", icon: Home, addr: "Вулиця, будинок, квартира" },
-  { v: "pickup", l: "Самовивіз", d: "Безкоштовно", icon: Building2, addr: "" },
-];
 const PAYMENT: { v: PaymentMethod; l: string; d: string; icon: typeof Wallet }[] = [
   { v: "cod", l: "Накладений платіж", d: "Оплата при отриманні", icon: Wallet },
   { v: "card_transfer", l: "Оплата на карту", d: "Реквізити надішлемо після дзвінка", icon: CreditCard },
@@ -27,26 +22,27 @@ export default function CheckoutPage() {
   const [, setLocation] = useLocation();
   const qc = useQueryClient();
   const create = useCreateOrder();
-  const [f, setF] = useState({ name: "", phone: "+380", email: "", city: "", delivery: "nova_poshta" as DeliveryMethod, address: "", payment: "cod" as PaymentMethod, comment: "" });
+  const [f, setF] = useState({ name: "", phone: "+380", email: "", payment: "cod" as PaymentMethod, comment: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [city, setCity] = useState<NpCity | null>(null);
+  const [branch, setBranch] = useState<NpBranch | null>(null);
   const set = (k: keyof typeof f, v: string) => { setF((p) => ({ ...p, [k]: v })); setErrors((e) => ({ ...e, [k]: "" })); };
 
   if (items.length === 0 && !create.isSuccess) return <StateBlock title="Кошик порожній" text="Спершу оберіть щось у каталозі." action={<Link href="/catalog" className="rounded-full bg-primary px-7 py-3.5 font-bold text-primary-foreground">До каталогу</Link>} />;
 
-  const deliv = DELIVERY.find((d) => d.v === f.delivery)!;
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const er: Record<string, string> = {};
     if (f.name.trim().length < 2) er.name = "Вкажіть ім'я та прізвище";
     if (phoneDigits(f.phone).length !== 12) er.phone = "Номер у форматі +380 XX XXX XX XX";
     if (f.email && !/^\S+@\S+\.\S+$/.test(f.email)) er.email = "Перевірте email";
-    if (f.city.trim().length < 2) er.city = "Вкажіть місто";
-    if (f.delivery !== "pickup" && !f.address.trim()) er.address = "Вкажіть, куди доставити";
+    if (!city) er.city = "Оберіть місто зі списку";
+    else if (!branch) er.address = "Оберіть відділення або поштомат зі списку";
     setErrors(er);
     if (Object.keys(er).length) { document.querySelector<HTMLElement>(`[data-field="${Object.keys(er)[0]}"]`)?.focus(); return; }
     create.mutate({ data: {
-      customerName: f.name.trim(), phone: "+" + phoneDigits(f.phone), email: f.email.trim() || undefined, city: f.city.trim(),
-      deliveryMethod: f.delivery, deliveryAddress: f.address.trim() || undefined, paymentMethod: f.payment, comment: f.comment.trim() || undefined,
+      customerName: f.name.trim(), phone: "+" + phoneDigits(f.phone), email: f.email.trim() || undefined, city: city!.label,
+      deliveryMethod: "nova_poshta", deliveryAddress: `${branch!.title}: ${branch!.address}`, paymentMethod: f.payment, comment: f.comment.trim() || undefined,
       items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
     } }, {
       onSuccess: (order) => {
@@ -76,18 +72,23 @@ export default function CheckoutPage() {
           </section>
           <section className="rounded-[1.6rem] border border-card-border bg-card p-5 sm:p-6">
             <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold"><span className="grid h-7 w-7 place-items-center rounded-full bg-primary text-xs text-primary-foreground">2</span>Доставка</h2>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {DELIVERY.map((d) => (
-                <button key={d.v} type="button" onClick={() => set("delivery", d.v)} data-testid={`option-delivery-${d.v}`} className={cn("flex flex-col items-start gap-1 rounded-2xl border-2 p-3 text-left transition active:scale-[.97]", f.delivery === d.v ? "border-primary bg-primary/5" : "border-border hover:border-foreground/30")}>
-                  <d.icon className={cn("h-5 w-5", f.delivery === d.v ? "text-primary" : "text-muted-foreground")} />
-                  <span className="text-sm font-bold">{d.l}</span><span className="text-[11px] text-muted-foreground">{d.d}</span>
-                </button>
-              ))}
+            <div className="mb-4 flex items-center gap-3 rounded-2xl bg-primary/5 p-3" data-testid="text-delivery-np">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#DA291C] text-white"><Truck className="h-4 w-4" /></span>
+              <div><div className="text-sm font-bold">Нова Пошта</div><div className="text-xs text-muted-foreground">У відділення або поштомат · 1–2 дні</div></div>
             </div>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div><input data-field="city" className={cn(inputCls, errors.city && "border-destructive")} placeholder="Місто" autoComplete="address-level2" value={f.city} onChange={(e) => set("city", e.target.value)} data-testid="input-city" /><Err k="city" /></div>
-              {f.delivery !== "pickup" ? <div><input data-field="address" className={cn(inputCls, errors.address && "border-destructive")} placeholder={deliv.addr} value={f.address} onChange={(e) => set("address", e.target.value)} data-testid="input-address" /><Err k="address" /></div>
-                : <div className="flex items-center rounded-2xl bg-secondary/40 px-4 text-sm">Адресу самовивозу повідомимо під час дзвінка</div>}
+            <div className="space-y-4">
+              <div>
+                <div className="mb-1.5 text-xs font-semibold text-muted-foreground">Місто</div>
+                <NpCityPicker value={city} onChange={(c) => { setCity(c); setBranch(null); setErrors((e) => ({ ...e, city: "", address: "" })); }} invalid={!!errors.city} />
+                <Err k="city" />
+              </div>
+              {city && (
+                <div>
+                  <div className="mb-1.5 text-xs font-semibold text-muted-foreground">Відділення або поштомат</div>
+                  <NpBranchPicker key={city.ref} city={city} value={branch} onChange={(b) => { setBranch(b); setErrors((e) => ({ ...e, address: "" })); }} invalid={!!errors.address} />
+                  <Err k="address" />
+                </div>
+              )}
             </div>
           </section>
           <section className="rounded-[1.6rem] border border-card-border bg-card p-5 sm:p-6">

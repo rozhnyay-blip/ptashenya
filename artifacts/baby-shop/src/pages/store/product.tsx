@@ -114,7 +114,7 @@ export default function ProductPage() {
             </div>
           )}
           <div className="mt-6 grid gap-2 rounded-[1.4rem] bg-muted/60 p-4 text-sm">
-            <div className="flex gap-3"><Truck className="h-5 w-5 shrink-0 text-primary" /><span>Відправка Новою Поштою, Укрпоштою, кур'єром або самовивіз</span></div>
+            <div className="flex gap-3"><Truck className="h-5 w-5 shrink-0 text-primary" /><span>Відправка Новою Поштою у будь-яке відділення чи поштомат</span></div>
             <div className="flex gap-3"><Check className="h-5 w-5 shrink-0 text-primary" /><span>Оплата при отриманні або на карту</span></div>
           </div>
           {p.description && (

@@ -156,6 +156,42 @@ paths:
         "400":
           description: Invalid order
 
+  /delivery/np/cities:
+    get:
+      operationId: searchNpCities
+      tags: [orders]
+      summary: Search Nova Poshta settlements that have branches
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 1 } }
+      responses:
+        "200":
+          description: Cities
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/NpCity" }
+        "502":
+          description: Nova Poshta unavailable
+
+  /delivery/np/branches:
+    get:
+      operationId: searchNpBranches
+      tags: [orders]
+      summary: Search Nova Poshta branches and parcel lockers in a settlement
+      parameters:
+        - { name: cityRef, in: query, required: true, schema: { type: string } }
+        - { name: q, in: query, required: false, schema: { type: string } }
+      responses:
+        "200":
+          description: Branches
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NpBranchList"
+        "502":
+          description: Nova Poshta unavailable
+
   /orders/lookup:
     get:
       operationId: lookupOrder
@@ -701,6 +737,33 @@ components:
     OrderStatus:
       type: string
       enum: [new, confirmed, shipped, delivered, cancelled]
+
+    NpCity:
+      type: object
+      required: [ref, name, label, branches]
+      properties:
+        ref: { type: string, description: "Settlement ref" }
+        name: { type: string, description: "e.g. м. Київ" }
+        label: { type: string, description: "Full label with region" }
+        branches: { type: integer }
+
+    NpBranch:
+      type: object
+      required: [ref, number, kind, title, address]
+      properties:
+        ref: { type: string }
+        number: { type: string }
+        kind: { type: string, enum: [branch, postomat, point] }
+        title: { type: string, description: "e.g. Відділення №25" }
+        address: { type: string }
+
+    NpBranchList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/NpBranch" }
 
     DeliveryMethod:
       type: string

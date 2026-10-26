@@ -1,2 +1,3 @@
 - [Supplier scraping](supplier-scraping.md) — priceless = out of stock; stock shown as ranges (exact only small / product page); parsing quirks
 - [Running server code ad-hoc](dev-scripts.md) — tsx loader path and how to test admin routes without Clerk
+- [Nova Poshta delivery](nova-poshta.md) — checkout is NP-only; keyless directory API, FindByString is single-word

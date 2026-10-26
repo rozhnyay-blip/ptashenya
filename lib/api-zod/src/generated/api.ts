@@ -276,6 +276,44 @@ export const CreateOrderResponse = zod.object({
 
 
 /**
+ * @summary Search Nova Poshta settlements that have branches
+ */
+
+
+
+export const SearchNpCitiesQueryParams = zod.object({
+  "q": zod.coerce.string().min(1)
+})
+
+export const SearchNpCitiesResponseItem = zod.object({
+  "ref": zod.string().describe('Settlement ref'),
+  "name": zod.string().describe('e.g. м. Київ'),
+  "label": zod.string().describe('Full label with region'),
+  "branches": zod.number().int()
+})
+export const SearchNpCitiesResponse = zod.array(SearchNpCitiesResponseItem)
+
+
+/**
+ * @summary Search Nova Poshta branches and parcel lockers in a settlement
+ */
+export const SearchNpBranchesQueryParams = zod.object({
+  "cityRef": zod.coerce.string(),
+  "q": zod.coerce.string().optional()
+})
+
+export const SearchNpBranchesResponse = zod.object({
+  "items": zod.array(zod.object({
+  "ref": zod.string(),
+  "number": zod.string(),
+  "kind": zod.enum(['branch', 'postomat', 'point']),
+  "title": zod.string().describe('e.g. Відділення №25'),
+  "address": zod.string()
+}))
+})
+
+
+/**
  * @summary Track an order by its number and phone
  */
 export const LookupOrderQueryParams = zod.object({

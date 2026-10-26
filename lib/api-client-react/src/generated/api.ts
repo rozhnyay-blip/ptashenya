@@ -38,6 +38,8 @@ import type {
   ListProductsParams,
   LookupOrderParams,
   Me,
+  NpBranchList,
+  NpCity,
   OrderDetail,
   OrderInput,
   OrderPage,
@@ -49,6 +51,8 @@ import type {
   ProductUpdate,
   ProductsSummary,
   SalesPoint,
+  SearchNpBranchesParams,
+  SearchNpCitiesParams,
   SeoRunResult,
   SeoSettingsInput,
   SeoStatus,
@@ -723,6 +727,174 @@ export const useCreateOrder = <TError = ErrorType<void>,
       > => {
       return useMutation(getCreateOrderMutationOptions(options));
     }
+
+export const getSearchNpCitiesUrl = (params: SearchNpCitiesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/delivery/np/cities?${stringifiedParams}` : `/api/delivery/np/cities`
+}
+
+/**
+ * @summary Search Nova Poshta settlements that have branches
+ */
+export const searchNpCities = async (params: SearchNpCitiesParams, options?: Parameters<typeof customFetch>[1]): Promise<NpCity[]> => {
+
+  return customFetch<NpCity[]>(getSearchNpCitiesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSearchNpCitiesQueryKey = (params?: SearchNpCitiesParams,) => {
+    return [
+    `/api/delivery/np/cities`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getSearchNpCitiesQueryOptions = <TData = Awaited<ReturnType<typeof searchNpCities>>, TError = ErrorType<void>>(params: SearchNpCitiesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchNpCities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSearchNpCitiesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof searchNpCities>>> = ({ signal }) => searchNpCities(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchNpCities>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type SearchNpCitiesQueryResult = NonNullable<Awaited<ReturnType<typeof searchNpCities>>>
+export type SearchNpCitiesQueryError = ErrorType<void>
+
+
+/**
+ * @summary Search Nova Poshta settlements that have branches
+ */
+
+export function useSearchNpCities<TData = Awaited<ReturnType<typeof searchNpCities>>, TError = ErrorType<void>>(
+ params: SearchNpCitiesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchNpCities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getSearchNpCitiesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSearchNpBranchesUrl = (params: SearchNpBranchesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/delivery/np/branches?${stringifiedParams}` : `/api/delivery/np/branches`
+}
+
+/**
+ * @summary Search Nova Poshta branches and parcel lockers in a settlement
+ */
+export const searchNpBranches = async (params: SearchNpBranchesParams, options?: Parameters<typeof customFetch>[1]): Promise<NpBranchList> => {
+
+  return customFetch<NpBranchList>(getSearchNpBranchesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSearchNpBranchesQueryKey = (params?: SearchNpBranchesParams,) => {
+    return [
+    `/api/delivery/np/branches`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getSearchNpBranchesQueryOptions = <TData = Awaited<ReturnType<typeof searchNpBranches>>, TError = ErrorType<void>>(params: SearchNpBranchesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchNpBranches>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSearchNpBranchesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof searchNpBranches>>> = ({ signal }) => searchNpBranches(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchNpBranches>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type SearchNpBranchesQueryResult = NonNullable<Awaited<ReturnType<typeof searchNpBranches>>>
+export type SearchNpBranchesQueryError = ErrorType<void>
+
+
+/**
+ * @summary Search Nova Poshta branches and parcel lockers in a settlement
+ */
+
+export function useSearchNpBranches<TData = Awaited<ReturnType<typeof searchNpBranches>>, TError = ErrorType<void>>(
+ params: SearchNpBranchesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchNpBranches>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getSearchNpBranchesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getLookupOrderUrl = (params: LookupOrderParams,) => {
   const normalizedParams = new URLSearchParams();

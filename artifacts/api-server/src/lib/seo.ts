@@ -34,6 +34,15 @@ function templateSql(template: string, storeName: string, price: ReturnType<type
   return sql`btrim(${tight}, ' ,|—')`;
 }
 
+/** SQL for the title/description the current templates would produce for `products` row (same as runSeo writes). */
+export function expectedSeoSql(s: { seoTitleTemplate: string; seoDescriptionTemplate: string; storeName: string; markupPercent: string | number; roundPrices: boolean }) {
+  const price = retailPriceSql(s as Parameters<typeof retailPriceSql>[0]);
+  return {
+    title: fitSql(templateSql(s.seoTitleTemplate, s.storeName, price), SEO_TITLE_MAX),
+    description: fitSql(templateSql(s.seoDescriptionTemplate, s.storeName, price), SEO_DESCRIPTION_MAX),
+  };
+}
+
 let running = false;
 
 export function isSeoRunning(): boolean {
@@ -47,9 +56,7 @@ export async function runSeo(): Promise<{ updated: number; durationMs: number; l
   const started = Date.now();
   try {
     const s = await getSettings();
-    const price = retailPriceSql(s);
-    const title = fitSql(templateSql(s.seoTitleTemplate, s.storeName, price), SEO_TITLE_MAX);
-    const description = fitSql(templateSql(s.seoDescriptionTemplate, s.storeName, price), SEO_DESCRIPTION_MAX);
+    const { title, description } = expectedSeoSql(s);
     const now = new Date();
     const result = await db.execute(
       sql`update products set seo_title = ${title}, seo_description = ${description}, seo_updated_at = ${now}`,

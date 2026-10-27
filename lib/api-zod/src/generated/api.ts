@@ -984,6 +984,72 @@ export const RunAdminSeoResponse = zod.object({
 
 
 /**
+ * @summary SEO health metrics for every page in the sitemap
+ */
+export const GetAdminSeoAuditResponse = zod.object({
+  "score": zod.number().int().describe('0–100 overall SEO health'),
+  "totalUrls": zod.number().int().describe('Links in sitemap.xml'),
+  "staticPages": zod.number().int(),
+  "categoryPages": zod.number().int(),
+  "productPages": zod.number().int(),
+  "cleanProducts": zod.number().int().describe('Product pages without any SEO issue'),
+  "onOrderProducts": zod.number().int(),
+  "issues": zod.array(zod.object({
+  "issue": zod.enum(['no_seo', 'outdated', 'duplicate_title', 'truncated_title', 'no_image', 'short_title', 'short_description']),
+  "count": zod.number().int().describe('Product pages with this issue'),
+  "groups": zod.number().int().nullable().describe('For duplicates: number of distinct repeated titles')
+})),
+  "avgTitleLength": zod.number().int(),
+  "avgDescriptionLength": zod.number().int(),
+  "titleBuckets": zod.array(zod.object({
+  "label": zod.string(),
+  "count": zod.number().int(),
+  "good": zod.boolean().describe('Length range Google shows well')
+})),
+  "descriptionBuckets": zod.array(zod.object({
+  "label": zod.string(),
+  "count": zod.number().int(),
+  "good": zod.boolean().describe('Length range Google shows well')
+}))
+})
+
+
+/**
+ * @summary Every public page link with its SEO title, description and issues
+ */
+
+export const listAdminSeoLinksQueryLimitMax = 200;
+
+
+
+export const ListAdminSeoLinksQueryParams = zod.object({
+  "kind": zod.enum(['all', 'page', 'category', 'product']).optional(),
+  "issue": zod.enum(['no_seo', 'outdated', 'duplicate_title', 'truncated_title', 'no_image', 'short_title', 'short_description']).optional(),
+  "q": zod.coerce.string().optional(),
+  "page": zod.coerce.number().int().min(1).optional(),
+  "limit": zod.coerce.number().int().min(1).max(listAdminSeoLinksQueryLimitMax).optional()
+})
+
+export const ListAdminSeoLinksResponse = zod.object({
+  "items": zod.array(zod.object({
+  "kind": zod.enum(['page', 'category', 'product']),
+  "id": zod.number().int().nullable(),
+  "path": zod.string().describe('Path relative to the store root, e.g. /product/12'),
+  "title": zod.string(),
+  "description": zod.string(),
+  "imageUrl": zod.string().nullable(),
+  "sku": zod.string().nullable(),
+  "titleLength": zod.number().int(),
+  "descriptionLength": zod.number().int(),
+  "issues": zod.array(zod.enum(['no_seo', 'outdated', 'duplicate_title', 'truncated_title', 'no_image', 'short_title', 'short_description']))
+})),
+  "total": zod.number().int(),
+  "page": zod.number().int(),
+  "pages": zod.number().int()
+})
+
+
+/**
  * @summary Hide/show, feature, or override price of a product
  */
 export const UpdateAdminProductParams = zod.object({

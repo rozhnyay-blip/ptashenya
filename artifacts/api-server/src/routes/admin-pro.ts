@@ -16,12 +16,14 @@ import {
   UpdateAdminSeoBody,
   ListAdminProductsQueryParams,
   ListAdminOrdersQueryParams,
+  ListAdminSeoLinksQueryParams,
 } from "@workspace/api-zod";
 import { requireAdmin } from "../middlewares/auth";
 import { getSettings, retailPrice, retailPriceSql } from "../lib/settings";
 import { adminProductFilter, allUnitsSql, approxUnitsSql, moneyBaseSql, onOrderSql, oneUnitSql, readySql, sellableSql, unitSqls } from "../lib/admin-filters";
 import { toAdminProduct } from "../lib/serialize";
 import { SEO_PLACEHOLDERS, isSeoRunning, runSeo } from "../lib/seo";
+import { seoAudit, seoLinks, type SeoIssue } from "../lib/seo-audit";
 
 const router: IRouter = Router();
 router.use("/admin", requireAdmin);
@@ -453,6 +455,22 @@ router.post("/admin/seo/run", async (req, res) => {
   }
 });
 
+router.get("/admin/seo/audit", async (_req, res) => {
+  res.json(await seoAudit());
+});
+
+router.get("/admin/seo/links", async (req, res) => {
+  const parsed = ListAdminSeoLinksQueryParams.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Невірні параметри" });
+    return;
+  }
+  const page = parsed.data.page ?? 1;
+  const limit = parsed.data.limit ?? 50;
+  const r = await seoLinks({ ...parsed.data, page, limit });
+  res.json({ items: r.items, total: r.total, page, pages: Math.max(1, Math.ceil(r.total / limit)) });
+});
+
 // ---------- CSV exports (opened in Excel; semicolon-separated with BOM for Ukrainian Excel) ----------
 
 function csvCell(v: unknown): string {
@@ -511,6 +529,44 @@ router.get("/admin/export/products.csv", async (req, res) => {
         p.supplierUrl,
       ];
     }),
+  );
+});
+
+const SEO_ISSUE_UA: Record<SeoIssue, string> = {
+  no_seo: "немає SEO",
+  outdated: "SEO застаріло (змінилась ціна чи назва)",
+  duplicate_title: "повтор заголовка",
+  truncated_title: "обрізаний заголовок",
+  no_image: "немає фото",
+  short_title: "короткий заголовок",
+  short_description: "короткий опис",
+};
+const SEO_KIND_UA = { page: "Сторінка", category: "Категорія", product: "Товар" } as const;
+
+router.get("/admin/export/seo-links.csv", async (req, res) => {
+  const parsed = ListAdminSeoLinksQueryParams.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Невірні параметри" });
+    return;
+  }
+  const host = (req.get("x-forwarded-host") ?? req.get("host") ?? "").split(",")[0]!.trim();
+  const proto = (req.get("x-forwarded-proto") ?? req.protocol).split(",")[0]!.trim();
+  const origin = `${proto}://${host}`;
+  const { items } = await seoLinks({ ...parsed.data, page: 1, limit: 0 });
+  sendCsv(
+    res,
+    `seo-posylannia-${new Date().toISOString().slice(0, 10)}.csv`,
+    ["Тип", "Посилання", "Код", "Заголовок (title)", "Символів", "Опис (description)", "Символів", "Проблеми"],
+    items.map((l) => [
+      SEO_KIND_UA[l.kind],
+      origin + l.path,
+      l.sku,
+      l.title,
+      l.titleLength,
+      l.description,
+      l.descriptionLength,
+      l.issues.map((i) => SEO_ISSUE_UA[i]).join(", "),
+    ]),
   );
 });
 

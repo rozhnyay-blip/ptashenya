@@ -513,6 +513,44 @@ paths:
               schema:
                 $ref: "#/components/schemas/SeoRunResult"
 
+  /admin/seo/audit:
+    get:
+      operationId: getAdminSeoAudit
+      tags: [admin]
+      summary: SEO health metrics for every page in the sitemap
+      responses:
+        "200":
+          description: Audit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeoAudit"
+
+  /admin/seo/links:
+    get:
+      operationId: listAdminSeoLinks
+      tags: [admin]
+      summary: Every public page link with its SEO title, description and issues
+      parameters:
+        - name: kind
+          in: query
+          required: false
+          schema: { $ref: "#/components/schemas/SeoLinkKindFilter" }
+        - name: issue
+          in: query
+          required: false
+          schema: { $ref: "#/components/schemas/SeoIssue" }
+        - { name: q, in: query, required: false, schema: { type: string } }
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 1 } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 200 } }
+      responses:
+        "200":
+          description: Links page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeoLinkPage"
+
   /admin/products/{id}:
     patch:
       operationId: updateAdminProduct
@@ -1288,6 +1326,71 @@ components:
         placeholders:
           type: array
           items: { type: string }
+
+    SeoIssue:
+      type: string
+      enum: [no_seo, outdated, duplicate_title, truncated_title, no_image, short_title, short_description]
+
+    SeoLinkKindFilter:
+      type: string
+      enum: [all, page, category, product]
+
+    SeoBucket:
+      type: object
+      required: [label, count, good]
+      properties:
+        label: { type: string }
+        count: { type: integer }
+        good: { type: boolean, description: "Length range Google shows well" }
+
+    SeoAudit:
+      type: object
+      required: [score, totalUrls, staticPages, categoryPages, productPages, cleanProducts, onOrderProducts, issues, avgTitleLength, avgDescriptionLength, titleBuckets, descriptionBuckets]
+      properties:
+        score: { type: integer, description: "0–100 overall SEO health" }
+        totalUrls: { type: integer, description: "Links in sitemap.xml" }
+        staticPages: { type: integer }
+        categoryPages: { type: integer }
+        productPages: { type: integer }
+        cleanProducts: { type: integer, description: "Product pages without any SEO issue" }
+        onOrderProducts: { type: integer }
+        issues:
+          type: array
+          items:
+            type: object
+            required: [issue, count, groups]
+            properties:
+              issue: { $ref: "#/components/schemas/SeoIssue" }
+              count: { type: integer, description: "Product pages with this issue" }
+              groups: { type: ["integer", "null"], description: "For duplicates: number of distinct repeated titles" }
+        avgTitleLength: { type: integer }
+        avgDescriptionLength: { type: integer }
+        titleBuckets: { type: array, items: { $ref: "#/components/schemas/SeoBucket" } }
+        descriptionBuckets: { type: array, items: { $ref: "#/components/schemas/SeoBucket" } }
+
+    SeoLink:
+      type: object
+      required: [kind, id, path, title, description, imageUrl, sku, titleLength, descriptionLength, issues]
+      properties:
+        kind: { type: string, enum: [page, category, product] }
+        id: { type: ["integer", "null"] }
+        path: { type: string, description: "Path relative to the store root, e.g. /product/12" }
+        title: { type: string }
+        description: { type: string }
+        imageUrl: { type: ["string", "null"] }
+        sku: { type: ["string", "null"] }
+        titleLength: { type: integer }
+        descriptionLength: { type: integer }
+        issues: { type: array, items: { $ref: "#/components/schemas/SeoIssue" } }
+
+    SeoLinkPage:
+      type: object
+      required: [items, total, page, pages]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/SeoLink" } }
+        total: { type: integer }
+        page: { type: integer }
+        pages: { type: integer }
 
     SeoSettingsInput:
       type: object

@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Check, CheckCircle2, Copy, ExternalLink, Globe, Loader2, Save, Sparkles, Zap } from "lucide-react";
-import { useGetAdminSeo, getGetAdminSeoQueryKey, useUpdateAdminSeo, useRunAdminSeo, type SeoRunResult, type SeoSample } from "@workspace/api-client-react";
+import { ExternalLink, Globe, Loader2, Save, Sparkles } from "lucide-react";
+import { useGetAdminSeo, getGetAdminSeoQueryKey, useUpdateAdminSeo, useRunAdminSeo, useGetAdminSeoAudit, getGetAdminSeoAuditQueryKey, getListAdminSeoLinksQueryKey, type SeoIssue, type SeoRunResult, type SeoSample } from "@workspace/api-client-react";
 import { PageHead, Panel } from "@/components/admin/admin-layout";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { apiError, dateTime, num, relTime } from "@/lib/format";
+import { apiError, num } from "@/lib/format";
+import { SeoHero, SeoMetrics } from "@/components/admin/seo/seo-health";
+import { SeoTools } from "@/components/admin/seo/seo-tools";
+import { SeoLinks } from "@/components/admin/seo/seo-links";
 import { cn } from "@/lib/utils";
 
 const CHIPS: { k: string; l: string }[] = [
@@ -51,7 +54,9 @@ export default function SeoPage() {
   const [savedHint, setSavedHint] = useState(false);
   const [result, setResult] = useState<SeoRunResult | null>(null);
   const [elapsed, setElapsed] = useState(0);
-  const [copied, setCopied] = useState(false);
+  const [issue, setIssue] = useState<SeoIssue | null>(null);
+  const linksRef = useRef<HTMLDivElement>(null);
+  const { data: audit } = useGetAdminSeoAudit({ query: { queryKey: getGetAdminSeoAuditQueryKey() } });
   const inited = useRef(false);
   useEffect(() => { if (s && !inited.current) { inited.current = true; setTitle(s.titleTemplate); setDesc(s.descriptionTemplate); } }, [s]);
   const save = useUpdateAdminSeo();
@@ -69,14 +74,22 @@ export default function SeoPage() {
   const dirty = title !== s.titleTemplate || desc !== s.descriptionTemplate;
   const titleErr = !title.includes("{name}");
   const cov = s.productsInStock ? (s.productsWithSeo / s.productsInStock) * 100 : 0;
-  const sitemap = window.location.origin + import.meta.env.BASE_URL.replace(/\/$/, "") + s.sitemapPath;
+  const refreshAll = () => {
+    qc.invalidateQueries({ queryKey: getGetAdminSeoQueryKey() });
+    qc.invalidateQueries({ queryKey: getGetAdminSeoAuditQueryKey() });
+    qc.invalidateQueries({ queryKey: getListAdminSeoLinksQueryKey().slice(0, 1) });
+  };
+  const pickIssue = (i: SeoIssue | null) => {
+    setIssue(i);
+    if (i) requestAnimationFrame(() => linksRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
 
   const doSave = () => save.mutate({ data: { titleTemplate: title, descriptionTemplate: desc } }, {
-    onSuccess: () => { toast({ title: "Шаблони збережено" }); setSavedHint(true); qc.invalidateQueries({ queryKey: getGetAdminSeoQueryKey() }); },
+    onSuccess: () => { toast({ title: "Шаблони збережено" }); setSavedHint(true); refreshAll(); },
     onError: (e) => toast({ title: "Не збережено", description: apiError(e).message, variant: "destructive" }),
   });
   const doRun = () => { setResult(null); run.mutate(undefined, {
-    onSuccess: (r) => { setResult(r); setSavedHint(false); toast({ title: "SEO оновлено", description: `${num(r.updated)} товарів за ${(r.durationMs / 1000).toFixed(1)} с` }); qc.invalidateQueries({ queryKey: getGetAdminSeoQueryKey() }); },
+    onSuccess: (r) => { setResult(r); setSavedHint(false); toast({ title: "SEO оновлено", description: `${num(r.updated)} товарів за ${(r.durationMs / 1000).toFixed(1)} с` }); refreshAll(); },
     onError: (e) => { const er = apiError(e); toast({ title: er.status === 409 ? "Оновлення вже триває" : "Не вдалося оновити", description: er.status === 409 ? "Дочекайтесь завершення." : er.message, variant: er.status === 409 ? undefined : "destructive" }); },
   }); };
   const toggleAuto = (v: boolean) => save.mutate({ data: { autoAfterSync: v } }, {
@@ -86,32 +99,14 @@ export default function SeoPage() {
 
   return (
     <div>
-      <PageHead title="SEO" sub="Як ваші товари виглядають у Google" />
+      <PageHead title="SEO-центр" sub="Як ваш магазин бачать Google, соцмережі та покупці" />
+      <SeoHero audit={audit} coverage={cov} withSeo={s.productsWithSeo} inStock={s.productsInStock} lastRunAt={s.lastRunAt} lastRunCount={s.lastRunCount}
+        running={run.isPending} elapsed={elapsed} result={result} onRun={doRun} />
+      <SeoMetrics audit={audit} activeIssue={issue} onPick={pickIssue} />
+      <SeoTools sitemapPath={s.sitemapPath} sampleProductPath={s.samples[0] ? `/product/${s.samples[0].id}` : null} />
 
-      <section className="relative mb-4 overflow-hidden rounded-2xl bg-sidebar p-5 text-sidebar-foreground sm:p-6">
-        <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-primary/25 blur-3xl" />
-        <div className="relative grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
-          <div>
-            <div className="text-[11px] font-semibold uppercase tracking-widest text-sidebar-foreground/55">Покриття товарів у наявності</div>
-            <div className="mt-1 flex flex-wrap items-baseline gap-x-3 font-mono tabular">
-              <span className="text-4xl font-semibold" data-testid="text-seo-coverage">{cov.toFixed(1)}%</span>
-              <span className="text-sm text-sidebar-foreground/65">{num(s.productsWithSeo)} з {num(s.productsInStock)}</span>
-            </div>
-            <div className="mt-3 h-1.5 max-w-md overflow-hidden rounded-full bg-sidebar-accent"><div className="h-full rounded-full bg-primary transition-[width] duration-700" style={{ width: `${Math.min(100, cov)}%` }} /></div>
-            <div className="mt-3 text-xs text-sidebar-foreground/60" data-testid="text-seo-last-run">{s.lastRunAt ? <>Останнє оновлення {relTime(s.lastRunAt)} ({dateTime(s.lastRunAt)}) · {num(s.lastRunCount ?? 0)} товарів</> : "Ще не запускалось"}</div>
-          </div>
-          <div className="flex flex-col items-stretch gap-2 lg:items-end">
-            <button type="button" onClick={doRun} disabled={run.isPending} data-testid="button-run-seo" className="group inline-flex h-14 items-center justify-center gap-2.5 rounded-2xl bg-primary px-7 text-base font-bold text-primary-foreground shadow-[0_12px_30px_-12px_hsl(14_88%_55%/0.8)] transition hover:-translate-y-0.5 active:translate-y-0 disabled:translate-y-0 disabled:opacity-90">
-              {run.isPending ? <><Loader2 className="h-5 w-5 animate-spin" />Оновлюю… <span className="font-mono tabular">{elapsed.toFixed(1)} с</span></> : <><Zap className="h-5 w-5 transition group-hover:rotate-12" />Оновити SEO для всіх товарів</>}
-            </button>
-            {result && <div className="flex items-center gap-1.5 text-sm text-[hsl(160_55%_75%)]" data-testid="text-seo-result"><CheckCircle2 className="h-4 w-4" />Готово: {num(result.updated)} товарів за {(result.durationMs / 1000).toFixed(1)} с</div>}
-            {!result && !run.isPending && <div className="text-[11px] text-sidebar-foreground/50">Займає 5–10 секунд для всього каталогу</div>}
-          </div>
-        </div>
-      </section>
-
-      <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
-        <Panel title="Шаблони" action={<button type="button" onClick={doSave} disabled={!dirty || titleErr || save.isPending} data-testid="button-save-templates" className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-foreground px-3 text-xs font-bold text-background disabled:opacity-35">{save.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}Зберегти</button>}>
+      <div className="mb-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <Panel className="min-w-0" title="Шаблони" action={<button type="button" onClick={doSave} disabled={!dirty || titleErr || save.isPending} data-testid="button-save-templates" className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-foreground px-3 text-xs font-bold text-background disabled:opacity-35">{save.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}Зберегти</button>}>
           <div className="space-y-4 p-4">
             <TemplateEditor id="title" label="Заголовок (title)" value={title} onChange={setTitle} ideal={70} rows={2} />
             {titleErr && <p className="-mt-2 text-xs font-semibold text-destructive" data-testid="text-title-error">Заголовок має містити {"{name}"} — назву товару.</p>}
@@ -130,7 +125,7 @@ export default function SeoPage() {
           </div>
         </Panel>
 
-        <Panel title="Як це виглядатиме в Google">
+        <Panel className="min-w-0" title="Як це виглядатиме в Google">
           {s.samples.length === 0 ? <p className="p-8 text-center text-sm text-muted-foreground">Немає товарів для прикладу — запустіть синхронізацію.</p> : (
             <ul className="divide-y divide-border">
               {s.samples.map((x) => {
@@ -138,7 +133,7 @@ export default function SeoPage() {
                 const changed = (x.seoTitle && x.seoTitle !== t) || (x.seoDescription && x.seoDescription !== d);
                 return (
                   <li key={x.id} className="p-4" data-testid={`preview-${x.id}`}>
-                    <div className="flex items-center gap-2 text-xs text-[hsl(220_8%_35%)]"><span className="grid h-6 w-6 place-items-center rounded-full bg-muted"><Globe className="h-3.5 w-3.5" /></span><span className="truncate">{window.location.host} › product › {x.id}</span></div>
+                    <div className="flex items-center gap-2 text-xs text-[hsl(220_8%_35%)]"><span className="grid h-6 w-6 place-items-center rounded-full bg-muted"><Globe className="h-3.5 w-3.5" /></span><span className="min-w-0 truncate">{window.location.host} › product › {x.id}</span></div>
                     <div className="mt-1 text-lg leading-snug text-[hsl(225_70%_42%)] hover:underline">{t}</div>
                     <p className="mt-0.5 text-[13px] leading-relaxed text-[hsl(220_8%_32%)]">{d}</p>
                     <div className="mt-1 font-mono text-[10px] text-muted-foreground">{t.length}/70 · {d.length}/160</div>
@@ -157,22 +152,17 @@ export default function SeoPage() {
         </Panel>
       </div>
 
-      <Panel title="Карта сайту для Google" className="mt-4">
-        <div className="grid gap-5 p-4 lg:grid-cols-[1fr_1fr]">
-          <div>
-            <div className="flex items-center gap-1.5 rounded-xl border border-border bg-background p-1.5 pl-3">
-              <code className="min-w-0 flex-1 truncate font-mono text-xs" data-testid="text-sitemap-url">{sitemap}</code>
-              <button type="button" onClick={() => { navigator.clipboard.writeText(sitemap).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600); }); }} data-testid="button-copy-sitemap" className="inline-flex h-8 items-center gap-1 rounded-lg bg-muted px-2.5 text-xs font-semibold hover:bg-muted/70">{copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}{copied ? "Скопійовано" : "Копіювати"}</button>
-              <a href={sitemap} target="_blank" rel="noreferrer" data-testid="link-open-sitemap" className="grid h-8 w-8 place-items-center rounded-lg bg-muted hover:bg-muted/70"><ExternalLink className="h-3.5 w-3.5" /></a>
-            </div>
-            <p className="mt-3 flex gap-2 text-xs leading-relaxed text-muted-foreground"><Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />Кожна сторінка товару вже має власний заголовок, опис, картинку для прев'ю в соцмережах і розмітку товару для Google (ціна, наявність).</p>
-          </div>
+      <SeoLinks ref={linksRef} audit={audit} issue={issue} onIssue={setIssue} />
+
+      <Panel title="Як додати магазин у Google">
+        <div className="grid gap-5 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <ol className="space-y-2 text-sm">
-            {["Відкрийте Google Search Console і додайте свій сайт (підтвердіть, що він ваш).", "У меню ліворуч виберіть «Файли Sitemap».", "Вставте скопійоване посилання і натисніть «Надіслати». Google сам почне знаходити ваші товари."].map((t, i) => (
+            {["Відкрийте Google Search Console і додайте свій сайт (підтвердіть, що він ваш).", "У меню ліворуч виберіть «Файли Sitemap».", "Вставте посилання на карту сайту (кнопка «Копіювати» вище) і натисніть «Надіслати». Google сам почне знаходити ваші товари."].map((t, i) => (
               <li key={i} className="flex gap-3"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-foreground font-mono text-xs font-bold text-background">{i + 1}</span><span className="pt-0.5">{t}</span></li>
             ))}
             <li><a href="https://search.google.com/search-console" target="_blank" rel="noreferrer" data-testid="link-search-console" className="inline-flex items-center gap-1 pl-9 text-xs font-semibold text-primary hover:underline">Відкрити Search Console<ExternalLink className="h-3 w-3" /></a></li>
           </ol>
+          <p className="flex gap-2 self-start rounded-xl bg-muted/60 p-3 text-xs leading-relaxed text-muted-foreground"><Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />Кожна сторінка товару вже має власний заголовок, опис, картинку для прев'ю в соцмережах і розмітку товару для Google (ціна, наявність). Карта сайту оновлюється автоматично.</p>
         </div>
       </Panel>
     </div>

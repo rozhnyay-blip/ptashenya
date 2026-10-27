@@ -35,6 +35,7 @@ import type {
   ListAdminOrdersParams,
   ListAdminPriceChangesParams,
   ListAdminProductsParams,
+  ListAdminSeoLinksParams,
   ListProductsParams,
   LookupOrderParams,
   Me,
@@ -53,6 +54,8 @@ import type {
   SalesPoint,
   SearchNpBranchesParams,
   SearchNpCitiesParams,
+  SeoAudit,
+  SeoLinkPage,
   SeoRunResult,
   SeoSettingsInput,
   SeoStatus,
@@ -2355,6 +2358,167 @@ export const useRunAdminSeo = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getRunAdminSeoMutationOptions(options));
     }
+
+export const getGetAdminSeoAuditUrl = () => {
+
+
+
+
+  return `/api/admin/seo/audit`
+}
+
+/**
+ * @summary SEO health metrics for every page in the sitemap
+ */
+export const getAdminSeoAudit = async ( options?: Parameters<typeof customFetch>[1]): Promise<SeoAudit> => {
+
+  return customFetch<SeoAudit>(getGetAdminSeoAuditUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminSeoAuditQueryKey = () => {
+    return [
+    `/api/admin/seo/audit`
+    ] as const;
+    }
+
+
+export const getGetAdminSeoAuditQueryOptions = <TData = Awaited<ReturnType<typeof getAdminSeoAudit>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminSeoAudit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminSeoAuditQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminSeoAudit>>> = ({ signal }) => getAdminSeoAudit({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminSeoAudit>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminSeoAuditQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminSeoAudit>>>
+export type GetAdminSeoAuditQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary SEO health metrics for every page in the sitemap
+ */
+
+export function useGetAdminSeoAudit<TData = Awaited<ReturnType<typeof getAdminSeoAudit>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminSeoAudit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminSeoAuditQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAdminSeoLinksUrl = (params?: ListAdminSeoLinksParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/seo/links?${stringifiedParams}` : `/api/admin/seo/links`
+}
+
+/**
+ * @summary Every public page link with its SEO title, description and issues
+ */
+export const listAdminSeoLinks = async (params?: ListAdminSeoLinksParams, options?: Parameters<typeof customFetch>[1]): Promise<SeoLinkPage> => {
+
+  return customFetch<SeoLinkPage>(getListAdminSeoLinksUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminSeoLinksQueryKey = (params?: ListAdminSeoLinksParams,) => {
+    return [
+    `/api/admin/seo/links`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminSeoLinksQueryOptions = <TData = Awaited<ReturnType<typeof listAdminSeoLinks>>, TError = ErrorType<unknown>>(params?: ListAdminSeoLinksParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminSeoLinks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminSeoLinksQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminSeoLinks>>> = ({ signal }) => listAdminSeoLinks(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminSeoLinks>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminSeoLinksQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminSeoLinks>>>
+export type ListAdminSeoLinksQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Every public page link with its SEO title, description and issues
+ */
+
+export function useListAdminSeoLinks<TData = Awaited<ReturnType<typeof listAdminSeoLinks>>, TError = ErrorType<unknown>>(
+ params?: ListAdminSeoLinksParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminSeoLinks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminSeoLinksQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getUpdateAdminProductUrl = (id: number,) => {
 

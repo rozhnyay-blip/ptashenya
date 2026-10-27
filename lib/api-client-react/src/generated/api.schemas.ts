@@ -698,6 +698,98 @@ export interface SeoStatus {
   placeholders: string[];
 }
 
+export type SeoIssue = typeof SeoIssue[keyof typeof SeoIssue];
+
+
+export const SeoIssue = {
+  no_seo: 'no_seo',
+  outdated: 'outdated',
+  duplicate_title: 'duplicate_title',
+  truncated_title: 'truncated_title',
+  no_image: 'no_image',
+  short_title: 'short_title',
+  short_description: 'short_description',
+} as const;
+
+export type SeoLinkKindFilter = typeof SeoLinkKindFilter[keyof typeof SeoLinkKindFilter];
+
+
+export const SeoLinkKindFilter = {
+  all: 'all',
+  page: 'page',
+  category: 'category',
+  product: 'product',
+} as const;
+
+export interface SeoBucket {
+  label: string;
+  count: number;
+  /** Length range Google shows well */
+  good: boolean;
+}
+
+export type SeoAuditIssuesItem = {
+  issue: SeoIssue;
+  /** Product pages with this issue */
+  count: number;
+  /**
+     * For duplicates: number of distinct repeated titles
+     * @nullable
+     */
+  groups: number | null;
+};
+
+export interface SeoAudit {
+  /** 0–100 overall SEO health */
+  score: number;
+  /** Links in sitemap.xml */
+  totalUrls: number;
+  staticPages: number;
+  categoryPages: number;
+  productPages: number;
+  /** Product pages without any SEO issue */
+  cleanProducts: number;
+  onOrderProducts: number;
+  issues: SeoAuditIssuesItem[];
+  avgTitleLength: number;
+  avgDescriptionLength: number;
+  titleBuckets: SeoBucket[];
+  descriptionBuckets: SeoBucket[];
+}
+
+export type SeoLinkKind = typeof SeoLinkKind[keyof typeof SeoLinkKind];
+
+
+export const SeoLinkKind = {
+  page: 'page',
+  category: 'category',
+  product: 'product',
+} as const;
+
+export interface SeoLink {
+  kind: SeoLinkKind;
+  /** @nullable */
+  id: number | null;
+  /** Path relative to the store root, e.g. /product/12 */
+  path: string;
+  title: string;
+  description: string;
+  /** @nullable */
+  imageUrl: string | null;
+  /** @nullable */
+  sku: string | null;
+  titleLength: number;
+  descriptionLength: number;
+  issues: SeoIssue[];
+}
+
+export interface SeoLinkPage {
+  items: SeoLink[];
+  total: number;
+  page: number;
+  pages: number;
+}
+
 export interface SeoSettingsInput {
   /**
      * @minLength 3
@@ -888,4 +980,19 @@ export const ListAdminPriceChangesDirection = {
   up: 'up',
   down: 'down',
 } as const;
+
+export type ListAdminSeoLinksParams = {
+kind?: SeoLinkKindFilter;
+issue?: SeoIssue;
+q?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: number;
+};
 

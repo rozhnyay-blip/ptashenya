@@ -27,7 +27,9 @@ import { requireAdmin } from "../middlewares/auth";
 import { getSettings, retailPriceSql } from "../lib/settings";
 import { adminProductFilter, readySql, sellableSql } from "../lib/admin-filters";
 import { hasSupplierCredentials } from "../lib/supplier";
-import { toAdminProduct, toOrder, toOrderDetail, toSyncRun } from "../lib/serialize";
+import { toAdminProduct, toOrder, toSyncRun } from "../lib/serialize";
+import { orderDetails } from "../lib/order-details";
+import { forgetParcel, normalizeTtn } from "../lib/parcel";
 import {
   getCurrentRun,
   getLastFinishedRun,
@@ -322,12 +324,8 @@ router.get("/admin/orders", async (req, res) => {
 async function orderDetail(id: number) {
   const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, id));
   if (!order) return null;
-  const items = await db
-    .select()
-    .from(orderItemsTable)
-    .where(eq(orderItemsTable.orderId, id))
-    .orderBy(asc(orderItemsTable.id));
-  return toOrderDetail(order, items, true);
+  const [detail] = await orderDetails([order], true);
+  return detail ?? null;
 }
 
 router.get("/admin/orders/:id", async (req, res) => {
@@ -359,6 +357,17 @@ router.patch("/admin/orders/:id", async (req, res) => {
   const patch: Partial<typeof ordersTable.$inferInsert> = {};
   if (body.data.status && STATUSES.includes(body.data.status)) patch.status = body.data.status;
   if (body.data.adminNote !== undefined) patch.adminNote = body.data.adminNote;
+  if (body.data.ttn !== undefined) {
+    const ttn = normalizeTtn(body.data.ttn);
+    if (ttn && !/^\d{10,20}$/.test(ttn)) {
+      res.status(400).json({ error: "ТТН Нової Пошти — це 14 цифр (наприклад 20450123456789)" });
+      return;
+    }
+    patch.ttn = ttn || null;
+    if (existing.ttn) forgetParcel(existing.ttn);
+    // Entering a waybill means the parcel is on its way.
+    if (ttn && !body.data.status && (existing.status === "new" || existing.status === "confirmed")) patch.status = "shipped";
+  }
   if (Object.keys(patch).length > 0) {
     await db.update(ordersTable).set(patch).where(eq(ordersTable.id, existing.id));
   }

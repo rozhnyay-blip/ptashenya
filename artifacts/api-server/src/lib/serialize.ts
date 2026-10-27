@@ -1,3 +1,4 @@
+import type { ParcelStatus } from "./parcel";
 import type { ProductRow, OrderRow, OrderItemRow, SyncRunRow, SettingsRow } from "@workspace/db";
 import { retailPrice } from "./settings";
 
@@ -69,6 +70,8 @@ export function toOrder(o: OrderRow, includeProfit: boolean) {
     paymentMethod: o.paymentMethod,
     comment: o.comment,
     adminNote: includeProfit ? o.adminNote : null,
+    ttn: o.ttn,
+    parcel: null as ParcelStatus | null,
     status: o.status,
     total: o.total,
     profit: includeProfit && o.cost !== null ? Math.round((o.total - o.cost) * 100) / 100 : null,
@@ -78,9 +81,10 @@ export function toOrder(o: OrderRow, includeProfit: boolean) {
   };
 }
 
-export function toOrderDetail(o: OrderRow, items: OrderItemRow[], includeProfit: boolean) {
+export function toOrderDetail(o: OrderRow, items: OrderItemRow[], includeProfit: boolean, parcel: ParcelStatus | null = null) {
   return {
     ...toOrder(o, includeProfit),
+    parcel,
     items: items.map((i) => ({
       id: i.id,
       productId: i.productId,

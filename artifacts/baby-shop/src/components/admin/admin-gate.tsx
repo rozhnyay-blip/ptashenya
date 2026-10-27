@@ -28,7 +28,7 @@ export function AdminGate({ children }: { children: ReactNode }) {
       <div className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-primary"><Lock className="h-7 w-7 text-primary-foreground" /></div>
       <h1 className="font-display text-2xl font-bold">Вхід для власника</h1>
       <p className="mt-2 text-sm text-sidebar-foreground/70">Тут живуть замовлення, статистика й синхронізація зі складом. Увійдіть, щоб продовжити.</p>
-      <Link href="/sign-in" className="mt-6 flex h-12 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground" data-testid="link-admin-sign-in">Увійти</Link>
+      <Link href={`/sign-in?redirect_url=${encodeURIComponent(window.location.href)}`} className="mt-6 flex h-12 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground" data-testid="link-admin-sign-in">Увійти</Link>
       <Link href="/" className="mt-3 block text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground">Повернутися до магазину</Link>
     </Shell>
   );

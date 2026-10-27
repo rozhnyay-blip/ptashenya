@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useUser } from "@clerk/react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Clock, Loader2, Lock, Truck, Wallet, CreditCard } from "lucide-react";
@@ -28,6 +29,12 @@ export default function CheckoutPage() {
   const [city, setCity] = useState<NpCity | null>(null);
   const [branch, setBranch] = useState<NpBranch | null>(null);
   const set = (k: keyof typeof f, v: string) => { setF((p) => ({ ...p, [k]: v })); setErrors((e) => ({ ...e, [k]: "" })); };
+  const { isSignedIn, user } = useUser();
+  // Signed-in customers: prefill what we know so the order lands in their account.
+  useEffect(() => {
+    if (!user) return;
+    setF((p) => ({ ...p, name: p.name || user.fullName || "", email: p.email || user.primaryEmailAddress?.emailAddress || "" }));
+  }, [user]);
 
   if (items.length === 0 && !create.isSuccess) return <StateBlock title="Кошик порожній" text="Спершу оберіть щось у каталозі." action={<Link href="/catalog" className="rounded-full bg-primary px-7 py-3.5 font-bold text-primary-foreground">До каталогу</Link>} />;
 
@@ -60,7 +67,9 @@ export default function CheckoutPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 pt-8">
       <h1 className="font-display text-3xl font-bold sm:text-4xl">Оформлення</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Без реєстрації. Ми зателефонуємо, щоб підтвердити.</p>
+      {isSignedIn
+        ? <p className="mt-1 text-sm text-muted-foreground">Замовлення збережеться у вашому кабінеті. Ми зателефонуємо, щоб підтвердити.</p>
+        : <p className="mt-1 text-sm text-muted-foreground">Можна без реєстрації — ми зателефонуємо, щоб підтвердити. Або <Link href={`/sign-in?redirect_url=${encodeURIComponent(window.location.href)}`} className="font-semibold text-primary underline-offset-4 hover:underline" data-testid="link-checkout-sign-in">увійдіть</Link>, щоб бачити посилку в кабінеті.</p>}
       <form onSubmit={submit} noValidate className="mt-6 grid gap-6 lg:grid-cols-[1fr_380px]">
         <div className="space-y-6">
           <section className="rounded-[1.6rem] border border-card-border bg-card p-5 sm:p-6">

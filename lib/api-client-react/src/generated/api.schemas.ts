@@ -221,6 +221,45 @@ export interface OrderItem {
   lineTotal: number;
 }
 
+export type ParcelStage = typeof ParcelStage[keyof typeof ParcelStage];
+
+
+export const ParcelStage = {
+  created: 'created',
+  in_transit: 'in_transit',
+  arrived: 'arrived',
+  received: 'received',
+  problem: 'problem',
+  unknown: 'unknown',
+} as const;
+
+export interface ParcelStatus {
+  ttn: string;
+  stage: ParcelStage;
+  /** Nova Poshta status text */
+  status: string;
+  statusCode: string;
+  /**
+     * Recipient city
+     * @nullable
+     */
+  city: string | null;
+  /**
+     * Recipient branch / parcel locker
+     * @nullable
+     */
+  warehouse: string | null;
+  /**
+     * Expected arrival as given by Nova Poshta
+     * @nullable
+     */
+  scheduledDelivery: string | null;
+  /** @nullable */
+  receivedAt: string | null;
+  checkedAt: string;
+  trackingUrl: string;
+}
+
 export interface Order {
   id: number;
   number: string;
@@ -237,6 +276,13 @@ export interface Order {
   comment?: string | null;
   /** @nullable */
   adminNote?: string | null;
+  /**
+     * Nova Poshta waybill number
+     * @nullable
+     */
+  ttn?: string | null;
+  /** Live Nova Poshta status (detail responses only, when ttn is set) */
+  parcel?: ParcelStatus | null;
   status: OrderStatus;
   total: number;
   /**
@@ -272,6 +318,16 @@ export interface OrderPage {
 export interface OrderUpdate {
   status?: OrderStatus;
   adminNote?: string;
+  /**
+     * Empty string clears it
+     * @maxLength 40
+     */
+  ttn?: string;
+}
+
+export interface ClaimOrderInput {
+  number: string;
+  phone: string;
 }
 
 export type SyncRunStatus = typeof SyncRunStatus[keyof typeof SyncRunStatus];

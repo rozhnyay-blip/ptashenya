@@ -14,6 +14,10 @@ export const ordersTable = pgTable(
     paymentMethod: text("payment_method").notNull(),
     comment: text("comment"),
     adminNote: text("admin_note"),
+    /** Clerk user id of the signed-in customer who placed or claimed the order. */
+    userId: text("user_id"),
+    /** Nova Poshta waybill number (ТТН), set by the owner when the parcel is shipped. */
+    ttn: text("ttn"),
     status: text("status").notNull().default("new"),
     total: numeric("total", { precision: 12, scale: 2, mode: "number" }).notNull(),
     cost: numeric("cost", { precision: 12, scale: 2, mode: "number" }),
@@ -24,7 +28,11 @@ export const ordersTable = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (t) => [index("orders_created_idx").on(t.createdAt), index("orders_status_idx").on(t.status)],
+  (t) => [
+    index("orders_created_idx").on(t.createdAt),
+    index("orders_status_idx").on(t.status),
+    index("orders_user_idx").on(t.userId),
+  ],
 );
 
 export const orderItemsTable = pgTable(

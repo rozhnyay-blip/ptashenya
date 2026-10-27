@@ -210,6 +210,45 @@ paths:
         "404":
           description: Not found
 
+  /me/orders:
+    get:
+      operationId: listMyOrders
+      tags: [orders]
+      summary: Orders of the signed-in customer (placed while signed in, claimed, or with a verified email)
+      responses:
+        "200":
+          description: Orders, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/OrderDetail" }
+        "401":
+          description: Not signed in
+
+  /me/orders/claim:
+    post:
+      operationId: claimMyOrder
+      tags: [orders]
+      summary: Attach an order made without signing in to the current account (number + phone)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClaimOrderInput"
+      responses:
+        "200":
+          description: Order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderDetail"
+        "401":
+          description: Not signed in
+        "404":
+          description: Not found
+
   /admin/dashboard:
     get:
       operationId: getAdminDashboard
@@ -883,6 +922,12 @@ components:
         paymentMethod: { $ref: "#/components/schemas/PaymentMethod" }
         comment: { type: ["string", "null"] }
         adminNote: { type: ["string", "null"] }
+        ttn: { type: ["string", "null"], description: "Nova Poshta waybill number" }
+        parcel:
+          description: Live Nova Poshta status (detail responses only, when ttn is set)
+          oneOf:
+            - $ref: "#/components/schemas/ParcelStatus"
+            - type: "null"
         status: { $ref: "#/components/schemas/OrderStatus" }
         total: { type: number }
         profit: { type: ["number", "null"], description: "Total minus supplier cost (admin only)" }
@@ -928,6 +973,33 @@ components:
       properties:
         status: { $ref: "#/components/schemas/OrderStatus" }
         adminNote: { type: string }
+        ttn: { type: string, maxLength: 40, description: "Empty string clears it" }
+
+    ClaimOrderInput:
+      type: object
+      required: [number, phone]
+      properties:
+        number: { type: string }
+        phone: { type: string }
+
+    ParcelStage:
+      type: string
+      enum: [created, in_transit, arrived, received, problem, unknown]
+
+    ParcelStatus:
+      type: object
+      required: [ttn, stage, status, statusCode, city, warehouse, scheduledDelivery, receivedAt, checkedAt, trackingUrl]
+      properties:
+        ttn: { type: string }
+        stage: { $ref: "#/components/schemas/ParcelStage" }
+        status: { type: string, description: "Nova Poshta status text" }
+        statusCode: { type: string }
+        city: { type: ["string", "null"], description: "Recipient city" }
+        warehouse: { type: ["string", "null"], description: "Recipient branch / parcel locker" }
+        scheduledDelivery: { type: ["string", "null"], description: "Expected arrival as given by Nova Poshta" }
+        receivedAt: { type: ["string", "null"] }
+        checkedAt: { type: string, format: date-time }
+        trackingUrl: { type: string }
 
     AdminDashboard:
       type: object

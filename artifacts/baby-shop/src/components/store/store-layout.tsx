@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { AnimatePresence, motion, useAnimationControls } from "framer-motion";
-import { Home, LayoutGrid, Search, ShoppingBag, Truck, Phone } from "lucide-react";
+import { useAuth, useUser } from "@clerk/react";
+import { Home, LayoutGrid, Search, ShoppingBag, Truck, Phone, UserRound } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { Logo } from "./logo";
 import { CartDrawer } from "./cart-drawer";
@@ -25,6 +26,29 @@ function CartButton({ className }: { className?: string }) {
   );
 }
 
+function AccountButton() {
+  const { isLoaded, isSignedIn } = useAuth();
+  const { user } = useUser();
+  const [location] = useLocation();
+  if (!isLoaded) return <div className="h-11 w-11 rounded-full bg-muted sm:w-[104px]" />;
+  if (!isSignedIn) return (
+    <Link href={`/sign-in?redirect_url=${encodeURIComponent(window.location.origin + import.meta.env.BASE_URL.replace(/\/$/, "") + "/account")}`} data-testid="link-sign-in"
+      className="inline-flex h-11 items-center gap-2 rounded-full border-2 border-foreground px-3 text-sm font-bold transition hover:bg-foreground hover:text-background active:scale-95 sm:px-4" aria-label="Увійти">
+      <UserRound className="h-5 w-5" /><span className="hidden sm:inline">Увійти</span>
+    </Link>
+  );
+  const name = user?.firstName || user?.primaryEmailAddress?.emailAddress || "";
+  return (
+    <Link href="/account" data-testid="link-account" aria-label="Мій кабінет"
+      className={cn("inline-flex h-11 items-center gap-2 rounded-full border-2 pl-1 pr-1 text-sm font-bold transition active:scale-95 sm:pr-4", location === "/account" ? "border-primary bg-primary/10" : "border-border hover:border-foreground")}>
+      {user?.imageUrl && user.hasImage
+        ? <img src={user.imageUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
+        : <span className="grid h-8 w-8 place-items-center rounded-full bg-primary font-display text-sm text-primary-foreground">{(name[0] ?? "?").toUpperCase()}</span>}
+      <span className="hidden sm:inline">Кабінет</span>
+    </Link>
+  );
+}
+
 function HeaderSearch() {
   const [, setLocation] = useLocation();
   const [q, setQ] = useState("");
@@ -40,6 +64,8 @@ function HeaderSearch() {
 export function StoreLayout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const { setOpen, count } = useCart();
+  const { isSignedIn } = useAuth();
+  const ordersHref = isSignedIn ? "/account" : "/track";
   useEffect(() => { window.scrollTo({ top: 0 }); }, [location]);
   const navCls = (active: boolean) => cn("rounded-full px-4 py-2 text-sm font-semibold transition", active ? "bg-foreground text-background" : "hover:bg-muted");
   return (
@@ -59,7 +85,7 @@ export function StoreLayout({ children }: { children: ReactNode }) {
             <Link href="/track" className={navCls(location === "/track")} data-testid="link-nav-track">Відстежити</Link>
           </nav>
           <div className="hidden flex-1 md:block"><HeaderSearch /></div>
-          <div className="ml-auto md:ml-0"><CartButton /></div>
+          <div className="ml-auto flex items-center gap-2 md:ml-0"><AccountButton /><CartButton /></div>
         </div>
         <div className="px-4 pb-3 md:hidden"><HeaderSearch /></div>
       </header>
@@ -95,7 +121,7 @@ export function StoreLayout({ children }: { children: ReactNode }) {
       </footer>
       {/* Mobile tab bar */}
       <nav className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 flex items-center justify-around rounded-full border border-border bg-card/95 p-1.5 shadow-[0_12px_40px_-12px_hsl(285_40%_20%/0.4)] backdrop-blur-xl md:hidden">
-        {[{ href: "/", icon: Home, label: "Головна", on: location === "/" }, { href: "/catalog", icon: LayoutGrid, label: "Каталог", on: location.startsWith("/catalog") }, { href: "/track", icon: Truck, label: "Замовлення", on: location === "/track" }].map((t) => (
+        {[{ href: "/", icon: Home, label: "Головна", on: location === "/" }, { href: "/catalog", icon: LayoutGrid, label: "Каталог", on: location.startsWith("/catalog") }, { href: ordersHref, icon: Truck, label: "Замовлення", on: location === "/track" || location === "/account" }].map((t) => (
           <Link key={t.href} href={t.href} data-testid={`tab-${t.label}`} className={cn("flex flex-1 flex-col items-center gap-0.5 rounded-full py-1.5 text-[10px] font-semibold transition", t.on ? "bg-foreground text-background" : "text-muted-foreground")}>
             <t.icon className="h-5 w-5" />{t.label}
           </Link>

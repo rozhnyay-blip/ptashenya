@@ -28,6 +28,7 @@ import type {
   BulkResult,
   Category,
   CategoryStat,
+  ClaimOrderInput,
   GetAdminProductsSummaryParams,
   GetAdminSalesChartParams,
   HealthStatus,
@@ -983,6 +984,171 @@ export function useLookupOrder<TData = Awaited<ReturnType<typeof lookupOrder>>, 
 
 
 
+
+export const getListMyOrdersUrl = () => {
+
+
+
+
+  return `/api/me/orders`
+}
+
+/**
+ * @summary Orders of the signed-in customer (placed while signed in, claimed, or with a verified email)
+ */
+export const listMyOrders = async ( options?: Parameters<typeof customFetch>[1]): Promise<OrderDetail[]> => {
+
+  return customFetch<OrderDetail[]>(getListMyOrdersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyOrdersQueryKey = () => {
+    return [
+    `/api/me/orders`
+    ] as const;
+    }
+
+
+export const getListMyOrdersQueryOptions = <TData = Awaited<ReturnType<typeof listMyOrders>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyOrders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyOrdersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyOrders>>> = ({ signal }) => listMyOrders({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyOrders>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMyOrdersQueryResult = NonNullable<Awaited<ReturnType<typeof listMyOrders>>>
+export type ListMyOrdersQueryError = ErrorType<void>
+
+
+/**
+ * @summary Orders of the signed-in customer (placed while signed in, claimed, or with a verified email)
+ */
+
+export function useListMyOrders<TData = Awaited<ReturnType<typeof listMyOrders>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyOrders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMyOrdersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getClaimMyOrderUrl = () => {
+
+
+
+
+  return `/api/me/orders/claim`
+}
+
+/**
+ * @summary Attach an order made without signing in to the current account (number + phone)
+ */
+export const claimMyOrder = async (claimOrderInput: ClaimOrderInput, options?: Parameters<typeof customFetch>[1]): Promise<OrderDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<OrderDetail>(getClaimMyOrderUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(claimOrderInput)
+  }
+);}
+
+
+
+
+
+export const getClaimMyOrderMutationKey = () => ['claimMyOrder'] as const;
+
+export const getClaimMyOrderMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof claimMyOrder>>, TError,ClaimMyOrderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof claimMyOrder>>, TError,ClaimMyOrderMutationVariables, TContext> => {
+
+const mutationKey = getClaimMyOrderMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof claimMyOrder>>, ClaimMyOrderMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  claimMyOrder(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClaimMyOrderMutationResult = NonNullable<Awaited<ReturnType<typeof claimMyOrder>>>
+    export type ClaimMyOrderMutationBody = BodyType<ClaimOrderInput>
+    export type ClaimMyOrderMutationError = ErrorType<void>
+    export type ClaimMyOrderMutationVariables = {data: BodyType<ClaimOrderInput>}
+
+    /**
+ * @summary Attach an order made without signing in to the current account (number + phone)
+ */
+export const useClaimMyOrder = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof claimMyOrder>>, TError,ClaimMyOrderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof claimMyOrder>>,
+        TError,
+        ClaimMyOrderMutationVariables,
+        TContext
+      > => {
+      return useMutation(getClaimMyOrderMutationOptions(options));
+    }
 
 export const getGetAdminDashboardUrl = () => {
 

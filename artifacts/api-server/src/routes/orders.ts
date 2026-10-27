@@ -6,10 +6,11 @@ import {
   orderItemsTable,
   orderEventsTable,
 } from "@workspace/db";
-import { and, eq, inArray, sql } from "drizzle-orm";
-import { CreateOrderBody, LookupOrderQueryParams } from "@workspace/api-zod";
+import { desc, eq, inArray, or, sql } from "drizzle-orm";
+import { ClaimMyOrderBody, CreateOrderBody, LookupOrderQueryParams } from "@workspace/api-zod";
 import { getSettings, retailPrice } from "../lib/settings";
 import { toOrderDetail } from "../lib/serialize";
+import { orderDetails } from "../lib/order-details";
 import { resolveIdentity } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -71,6 +72,13 @@ router.post("/orders", async (req, res) => {
   }
 
   const settings = await getSettings();
+  // Orders placed while signed in show up in the customer's account.
+  let userId: string | null = null;
+  try {
+    userId = (await resolveIdentity(req)).userId;
+  } catch (err) {
+    req.log.warn({ err }, "Could not resolve customer identity for order");
+  }
   const lines = products.map((p) => {
     const quantity = qtyById.get(p.id)!;
     return {
@@ -101,6 +109,7 @@ router.post("/orders", async (req, res) => {
         deliveryAddress: input.deliveryAddress?.trim() || null,
         paymentMethod: input.paymentMethod,
         comment: input.comment?.trim() || null,
+        userId,
         status: "new",
         total,
         cost,
@@ -154,11 +163,54 @@ router.get("/orders/lookup", async (req, res) => {
     res.status(404).json({ error: "Замовлення не знайдено" });
     return;
   }
-  const items = await db
+  const [detail] = await orderDetails([order], false);
+  res.json(detail);
+});
+
+router.get("/me/orders", async (req, res) => {
+  const id = await resolveIdentity(req);
+  if (!id.userId) {
+    res.status(401).json({ error: "Потрібно увійти" });
+    return;
+  }
+  const byEmail = id.verifiedEmails.length
+    ? inArray(sql`lower(${ordersTable.email})`, id.verifiedEmails)
+    : undefined;
+  const orders = await db
     .select()
-    .from(orderItemsTable)
-    .where(and(eq(orderItemsTable.orderId, order.id)));
-  res.json(toOrderDetail(order, items, false));
+    .from(ordersTable)
+    .where(byEmail ? or(eq(ordersTable.userId, id.userId), byEmail) : eq(ordersTable.userId, id.userId))
+    .orderBy(desc(ordersTable.createdAt))
+    .limit(100);
+  res.json(await orderDetails(orders, false));
+});
+
+router.post("/me/orders/claim", async (req, res) => {
+  const id = await resolveIdentity(req);
+  if (!id.userId) {
+    res.status(401).json({ error: "Потрібно увійти" });
+    return;
+  }
+  const parsed = ClaimMyOrderBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Вкажіть номер замовлення і телефон" });
+    return;
+  }
+  const number = parsed.data.number.replace(/\D/g, "");
+  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.number, number));
+  if (!order || phoneDigits(order.phone) !== phoneDigits(parsed.data.phone)) {
+    res.status(404).json({ error: "Замовлення не знайдено — перевірте номер і телефон" });
+    return;
+  }
+  if (order.userId && order.userId !== id.userId) {
+    res.status(409).json({ error: "Це замовлення вже привʼязане до іншого акаунта" });
+    return;
+  }
+  const [updated] = order.userId
+    ? [order]
+    : await db.update(ordersTable).set({ userId: id.userId }).where(eq(ordersTable.id, order.id)).returning();
+  const [detail] = await orderDetails([updated!], false);
+  res.json(detail);
 });
 
 router.get("/me", async (req, res) => {

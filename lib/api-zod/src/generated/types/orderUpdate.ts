@@ -10,4 +10,9 @@ import type { OrderStatus } from './orderStatus';
 export interface OrderUpdate {
   status?: OrderStatus;
   adminNote?: string;
+  /**
+     * Empty string clears it
+     * @maxLength 40
+     */
+  ttn?: string;
 }

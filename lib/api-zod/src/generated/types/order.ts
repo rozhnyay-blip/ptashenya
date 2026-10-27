@@ -7,6 +7,7 @@
  */
 import type { DeliveryMethod } from './deliveryMethod';
 import type { OrderStatus } from './orderStatus';
+import type { ParcelStatus } from './parcelStatus';
 import type { PaymentMethod } from './paymentMethod';
 
 export interface Order {
@@ -25,6 +26,13 @@ export interface Order {
   comment?: string | null;
   /** @nullable */
   adminNote?: string | null;
+  /**
+     * Nova Poshta waybill number
+     * @nullable
+     */
+  ttn?: string | null;
+  /** Live Nova Poshta status (detail responses only, when ttn is set) */
+  parcel?: ParcelStatus | null;
   status: OrderStatus;
   total: number;
   /**

@@ -18,8 +18,8 @@ function AuthShell({ children }: { children: ReactNode }) {
 }
 
 export function SignInPage() {
-  return <AuthShell><SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} fallbackRedirectUrl={`${basePath}/admin`} forceRedirectUrl={`${basePath}/admin`} /></AuthShell>;
+  return <AuthShell><SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} fallbackRedirectUrl={`${basePath}/account`} /></AuthShell>;
 }
 export function SignUpPage() {
-  return <AuthShell><SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} fallbackRedirectUrl={`${basePath}/admin`} forceRedirectUrl={`${basePath}/admin`} /></AuthShell>;
+  return <AuthShell><SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} fallbackRedirectUrl={`${basePath}/account`} /></AuthShell>;
 }

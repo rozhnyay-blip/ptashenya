@@ -260,6 +260,19 @@ export const CreateOrderResponse = zod.object({
   "paymentMethod": zod.enum(['cod', 'card_transfer']),
   "comment": zod.string().nullish(),
   "adminNote": zod.string().nullish(),
+  "ttn": zod.string().nullish().describe('Nova Poshta waybill number'),
+  "parcel": zod.union([zod.object({
+  "ttn": zod.string(),
+  "stage": zod.enum(['created', 'in_transit', 'arrived', 'received', 'problem', 'unknown']),
+  "status": zod.string().describe('Nova Poshta status text'),
+  "statusCode": zod.string(),
+  "city": zod.string().nullable().describe('Recipient city'),
+  "warehouse": zod.string().nullable().describe('Recipient branch / parcel locker'),
+  "scheduledDelivery": zod.string().nullable().describe('Expected arrival as given by Nova Poshta'),
+  "receivedAt": zod.string().nullable(),
+  "checkedAt": zod.coerce.date(),
+  "trackingUrl": zod.string()
+}),zod.null()]).optional().describe('Live Nova Poshta status (detail responses only, when ttn is set)'),
   "status": zod.enum(['new', 'confirmed', 'shipped', 'delivered', 'cancelled']),
   "total": zod.number(),
   "profit": zod.number().nullish().describe('Total minus supplier cost (admin only)'),
@@ -340,6 +353,125 @@ export const LookupOrderResponse = zod.object({
   "paymentMethod": zod.enum(['cod', 'card_transfer']),
   "comment": zod.string().nullish(),
   "adminNote": zod.string().nullish(),
+  "ttn": zod.string().nullish().describe('Nova Poshta waybill number'),
+  "parcel": zod.union([zod.object({
+  "ttn": zod.string(),
+  "stage": zod.enum(['created', 'in_transit', 'arrived', 'received', 'problem', 'unknown']),
+  "status": zod.string().describe('Nova Poshta status text'),
+  "statusCode": zod.string(),
+  "city": zod.string().nullable().describe('Recipient city'),
+  "warehouse": zod.string().nullable().describe('Recipient branch / parcel locker'),
+  "scheduledDelivery": zod.string().nullable().describe('Expected arrival as given by Nova Poshta'),
+  "receivedAt": zod.string().nullable(),
+  "checkedAt": zod.coerce.date(),
+  "trackingUrl": zod.string()
+}),zod.null()]).optional().describe('Live Nova Poshta status (detail responses only, when ttn is set)'),
+  "status": zod.enum(['new', 'confirmed', 'shipped', 'delivered', 'cancelled']),
+  "total": zod.number(),
+  "profit": zod.number().nullish().describe('Total minus supplier cost (admin only)'),
+  "itemsCount": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional()
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.number().int(),
+  "productId": zod.number().int().nullable(),
+  "name": zod.string(),
+  "sku": zod.string(),
+  "imageUrl": zod.string().nullish(),
+  "price": zod.number(),
+  "supplierPrice": zod.number().nullish(),
+  "quantity": zod.number().int(),
+  "deliveryDays": zod.number().int().nullish().describe('Set for on-order items (longer delivery)'),
+  "lineTotal": zod.number()
+}))
+}))
+
+
+/**
+ * @summary Orders of the signed-in customer (placed while signed in, claimed, or with a verified email)
+ */
+export const ListMyOrdersResponseItem = zod.object({
+  "id": zod.number().int(),
+  "number": zod.string(),
+  "customerName": zod.string(),
+  "phone": zod.string(),
+  "email": zod.string().nullish(),
+  "city": zod.string(),
+  "deliveryMethod": zod.enum(['nova_poshta', 'ukrposhta', 'courier', 'pickup']),
+  "deliveryAddress": zod.string().nullish(),
+  "paymentMethod": zod.enum(['cod', 'card_transfer']),
+  "comment": zod.string().nullish(),
+  "adminNote": zod.string().nullish(),
+  "ttn": zod.string().nullish().describe('Nova Poshta waybill number'),
+  "parcel": zod.union([zod.object({
+  "ttn": zod.string(),
+  "stage": zod.enum(['created', 'in_transit', 'arrived', 'received', 'problem', 'unknown']),
+  "status": zod.string().describe('Nova Poshta status text'),
+  "statusCode": zod.string(),
+  "city": zod.string().nullable().describe('Recipient city'),
+  "warehouse": zod.string().nullable().describe('Recipient branch / parcel locker'),
+  "scheduledDelivery": zod.string().nullable().describe('Expected arrival as given by Nova Poshta'),
+  "receivedAt": zod.string().nullable(),
+  "checkedAt": zod.coerce.date(),
+  "trackingUrl": zod.string()
+}),zod.null()]).optional().describe('Live Nova Poshta status (detail responses only, when ttn is set)'),
+  "status": zod.enum(['new', 'confirmed', 'shipped', 'delivered', 'cancelled']),
+  "total": zod.number(),
+  "profit": zod.number().nullish().describe('Total minus supplier cost (admin only)'),
+  "itemsCount": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional()
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.number().int(),
+  "productId": zod.number().int().nullable(),
+  "name": zod.string(),
+  "sku": zod.string(),
+  "imageUrl": zod.string().nullish(),
+  "price": zod.number(),
+  "supplierPrice": zod.number().nullish(),
+  "quantity": zod.number().int(),
+  "deliveryDays": zod.number().int().nullish().describe('Set for on-order items (longer delivery)'),
+  "lineTotal": zod.number()
+}))
+}))
+export const ListMyOrdersResponse = zod.array(ListMyOrdersResponseItem)
+
+
+/**
+ * @summary Attach an order made without signing in to the current account (number + phone)
+ */
+export const ClaimMyOrderBody = zod.object({
+  "number": zod.string(),
+  "phone": zod.string()
+})
+
+export const ClaimMyOrderResponse = zod.object({
+  "id": zod.number().int(),
+  "number": zod.string(),
+  "customerName": zod.string(),
+  "phone": zod.string(),
+  "email": zod.string().nullish(),
+  "city": zod.string(),
+  "deliveryMethod": zod.enum(['nova_poshta', 'ukrposhta', 'courier', 'pickup']),
+  "deliveryAddress": zod.string().nullish(),
+  "paymentMethod": zod.enum(['cod', 'card_transfer']),
+  "comment": zod.string().nullish(),
+  "adminNote": zod.string().nullish(),
+  "ttn": zod.string().nullish().describe('Nova Poshta waybill number'),
+  "parcel": zod.union([zod.object({
+  "ttn": zod.string(),
+  "stage": zod.enum(['created', 'in_transit', 'arrived', 'received', 'problem', 'unknown']),
+  "status": zod.string().describe('Nova Poshta status text'),
+  "statusCode": zod.string(),
+  "city": zod.string().nullable().describe('Recipient city'),
+  "warehouse": zod.string().nullable().describe('Recipient branch / parcel locker'),
+  "scheduledDelivery": zod.string().nullable().describe('Expected arrival as given by Nova Poshta'),
+  "receivedAt": zod.string().nullable(),
+  "checkedAt": zod.coerce.date(),
+  "trackingUrl": zod.string()
+}),zod.null()]).optional().describe('Live Nova Poshta status (detail responses only, when ttn is set)'),
   "status": zod.enum(['new', 'confirmed', 'shipped', 'delivered', 'cancelled']),
   "total": zod.number(),
   "profit": zod.number().nullish().describe('Total minus supplier cost (admin only)'),
@@ -497,6 +629,19 @@ export const ListAdminOrdersResponse = zod.object({
   "paymentMethod": zod.enum(['cod', 'card_transfer']),
   "comment": zod.string().nullish(),
   "adminNote": zod.string().nullish(),
+  "ttn": zod.string().nullish().describe('Nova Poshta waybill number'),
+  "parcel": zod.union([zod.object({
+  "ttn": zod.string(),
+  "stage": zod.enum(['created', 'in_transit', 'arrived', 'received', 'problem', 'unknown']),
+  "status": zod.string().describe('Nova Poshta status text'),
+  "statusCode": zod.string(),
+  "city": zod.string().nullable().describe('Recipient city'),
+  "warehouse": zod.string().nullable().describe('Recipient branch / parcel locker'),
+  "scheduledDelivery": zod.string().nullable().describe('Expected arrival as given by Nova Poshta'),
+  "receivedAt": zod.string().nullable(),
+  "checkedAt": zod.coerce.date(),
+  "trackingUrl": zod.string()
+}),zod.null()]).optional().describe('Live Nova Poshta status (detail responses only, when ttn is set)'),
   "status": zod.enum(['new', 'confirmed', 'shipped', 'delivered', 'cancelled']),
   "total": zod.number(),
   "profit": zod.number().nullish().describe('Total minus supplier cost (admin only)'),
@@ -536,6 +681,19 @@ export const GetAdminOrderResponse = zod.object({
   "paymentMethod": zod.enum(['cod', 'card_transfer']),
   "comment": zod.string().nullish(),
   "adminNote": zod.string().nullish(),
+  "ttn": zod.string().nullish().describe('Nova Poshta waybill number'),
+  "parcel": zod.union([zod.object({
+  "ttn": zod.string(),
+  "stage": zod.enum(['created', 'in_transit', 'arrived', 'received', 'problem', 'unknown']),
+  "status": zod.string().describe('Nova Poshta status text'),
+  "statusCode": zod.string(),
+  "city": zod.string().nullable().describe('Recipient city'),
+  "warehouse": zod.string().nullable().describe('Recipient branch / parcel locker'),
+  "scheduledDelivery": zod.string().nullable().describe('Expected arrival as given by Nova Poshta'),
+  "receivedAt": zod.string().nullable(),
+  "checkedAt": zod.coerce.date(),
+  "trackingUrl": zod.string()
+}),zod.null()]).optional().describe('Live Nova Poshta status (detail responses only, when ttn is set)'),
   "status": zod.enum(['new', 'confirmed', 'shipped', 'delivered', 'cancelled']),
   "total": zod.number(),
   "profit": zod.number().nullish().describe('Total minus supplier cost (admin only)'),
@@ -565,9 +723,14 @@ export const UpdateAdminOrderParams = zod.object({
   "id": zod.coerce.number().int()
 })
 
+export const updateAdminOrderBodyTtnMax = 40;
+
+
+
 export const UpdateAdminOrderBody = zod.object({
   "status": zod.enum(['new', 'confirmed', 'shipped', 'delivered', 'cancelled']).optional(),
-  "adminNote": zod.string().optional()
+  "adminNote": zod.string().optional(),
+  "ttn": zod.string().max(updateAdminOrderBodyTtnMax).optional().describe('Empty string clears it')
 })
 
 export const UpdateAdminOrderResponse = zod.object({
@@ -582,6 +745,19 @@ export const UpdateAdminOrderResponse = zod.object({
   "paymentMethod": zod.enum(['cod', 'card_transfer']),
   "comment": zod.string().nullish(),
   "adminNote": zod.string().nullish(),
+  "ttn": zod.string().nullish().describe('Nova Poshta waybill number'),
+  "parcel": zod.union([zod.object({
+  "ttn": zod.string(),
+  "stage": zod.enum(['created', 'in_transit', 'arrived', 'received', 'problem', 'unknown']),
+  "status": zod.string().describe('Nova Poshta status text'),
+  "statusCode": zod.string(),
+  "city": zod.string().nullable().describe('Recipient city'),
+  "warehouse": zod.string().nullable().describe('Recipient branch / parcel locker'),
+  "scheduledDelivery": zod.string().nullable().describe('Expected arrival as given by Nova Poshta'),
+  "receivedAt": zod.string().nullable(),
+  "checkedAt": zod.coerce.date(),
+  "trackingUrl": zod.string()
+}),zod.null()]).optional().describe('Live Nova Poshta status (detail responses only, when ttn is set)'),
   "status": zod.enum(['new', 'confirmed', 'shipped', 'delivered', 'cancelled']),
   "total": zod.number(),
   "profit": zod.number().nullish().describe('Total minus supplier cost (admin only)'),

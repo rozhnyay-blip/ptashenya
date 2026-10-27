@@ -5,6 +5,7 @@ import { ArrowLeft, Copy, ExternalLink, Loader2, Phone } from "lucide-react";
 import { useGetAdminOrder, getGetAdminOrderQueryKey, useUpdateAdminOrder, getListAdminOrdersQueryKey, getGetAdminDashboardQueryKey, getGetAdminActivityQueryKey, type OrderStatus } from "@workspace/api-client-react";
 import { PageHead, Panel, StatusPill } from "@/components/admin/admin-layout";
 import { ProductImage } from "@/components/store/product-image";
+import { ParcelCard } from "@/components/store/order-view";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { DELIVERY_LABEL, PAYMENT_LABEL, STATUS_LABEL, apiError, dateTime, uah, ON_ORDER_TERM, isOnOrder } from "@/lib/format";
@@ -20,10 +21,11 @@ export default function OrderDetailPage() {
   const { data: o, isLoading, isError, refetch } = useGetAdminOrder(id, { query: { enabled: !!id, queryKey: getGetAdminOrderQueryKey(id) } });
   const update = useUpdateAdminOrder();
   const [note, setNote] = useState("");
+  const [ttn, setTtn] = useState("");
   const inited = useRef<number | null>(null);
-  useEffect(() => { if (o && inited.current !== o.id) { inited.current = o.id; setNote(o.adminNote ?? ""); } }, [o]);
+  useEffect(() => { if (o && inited.current !== o.id) { inited.current = o.id; setNote(o.adminNote ?? ""); setTtn(o.ttn ?? ""); } }, [o]);
 
-  const save = (data: { status?: OrderStatus; adminNote?: string }, msg: string) => update.mutate({ id, data }, {
+  const save = (data: { status?: OrderStatus; adminNote?: string; ttn?: string }, msg: string) => update.mutate({ id, data }, {
     onSuccess: (res) => {
       qc.setQueryData(getGetAdminOrderQueryKey(id), res);
       qc.invalidateQueries({ queryKey: getListAdminOrdersQueryKey() });
@@ -71,12 +73,21 @@ export default function OrderDetailPage() {
           {o.comment && <Panel title="Коментар клієнта"><p className="whitespace-pre-line p-4 text-sm">{o.comment}</p></Panel>}
           <Panel title="Нотатка для себе">
             <div className="p-4">
-              <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="ТТН, домовленості, нагадування..." data-testid="input-admin-note" className="min-h-24 w-full rounded-xl border border-border bg-background p-3 text-sm outline-none focus:border-primary" />
+              <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Домовленості, нагадування..." data-testid="input-admin-note" className="min-h-24 w-full rounded-xl border border-border bg-background p-3 text-sm outline-none focus:border-primary" />
               <button type="button" disabled={update.isPending || note === (o.adminNote ?? "")} onClick={() => save({ adminNote: note }, "Нотатку збережено")} data-testid="button-save-note" className="mt-2 rounded-lg bg-foreground px-4 py-2 text-sm font-semibold text-background disabled:opacity-40">Зберегти нотатку</button>
             </div>
           </Panel>
         </div>
         <div className="space-y-4">
+          <Panel title="ТТН Нової Пошти">
+            <div className="space-y-3 p-3">
+              <form onSubmit={(e) => { e.preventDefault(); save({ ttn: ttn.replace(/\D/g, "") }, ttn.trim() ? "ТТН збережено — клієнт бачить посилку" : "ТТН прибрано"); }} className="flex gap-2">
+                <input value={ttn} onChange={(e) => setTtn(e.target.value)} inputMode="numeric" placeholder="20450123456789" data-testid="input-ttn" className="h-10 min-w-0 flex-1 rounded-xl border border-border bg-background px-3 font-mono text-sm outline-none tabular focus:border-primary" />
+                <button type="submit" disabled={update.isPending || ttn.replace(/\D/g, "") === (o.ttn ?? "")} data-testid="button-save-ttn" className="rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-40">Зберегти</button>
+              </form>
+              {o.ttn ? <ParcelCard order={o} /> : <p className="text-xs text-muted-foreground">Впишіть номер накладної після відправки — клієнт побачить, де посилка, у своєму кабінеті та на сторінці «Де моє замовлення?». Статус сам зміниться на «Відправлене».</p>}
+            </div>
+          </Panel>
           <Panel title="Статус">
             <div className="grid gap-1.5 p-3">
               {FLOW.map((s) => (

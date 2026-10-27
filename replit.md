@@ -29,6 +29,8 @@ Online baby-goods store (Ukrainian UI) that resells the warehouse stock of suppl
 ## Architecture decisions
 
 - Admin = signed-in Clerk user whose VERIFIED email equals ADMIN_EMAIL; checked server-side on every /api/admin route. No roles table.
+- Customers can also sign in (same Clerk app; header «Увійти» → /account «Мій кабінет»). Checkout stays possible without an account. A customer's orders = orders.user_id (set when ordering while signed in, or via "claim" by number+phone) OR order email matching one of their verified emails (`/api/me/orders`). Phone sign-in isn't available in Replit-managed Clerk, so email/Google only.
+- Parcel tracking: owner enters the Nova Poshta ТТН on the admin order page (auto-moves new/confirmed → shipped); customers see live NP status (keyless TrackingDocument.getStatusDocuments, cached 10 min, `src/lib/parcel.ts`) in the account, on /track and on the order.
 - Catalog comes from scraping toysi.ua HTML listings (52/page, `/offsetN/` pagination). Products of fully scanned categories not seen in a run become out of stock; failed categories are left untouched.
 - Retail price = supplier price × (1 + markup%) (ceil if rounding) unless the owner sets a price override. Products with no known price are hidden from the store.
 - Product images are hotlinked from toysi.ua; descriptions/extra photos are fetched lazily on first product view.
@@ -40,7 +42,7 @@ Online baby-goods store (Ukrainian UI) that resells the warehouse stock of suppl
 
 ## Product
 
-- Storefront: catalog with search/filters, product pages, cart, checkout without account (Nova Poshta only — owner decision; city + any branch/parcel locker picked from the live Nova Poshta directory via /api/delivery/np/*, no API key needed; COD or card transfer), order tracking by number+phone.
+- Storefront: catalog with search/filters, product pages, cart, checkout without account (Nova Poshta only — owner decision; city + any branch/parcel locker picked from the live Nova Poshta directory via /api/delivery/np/*, no API key needed; COD or card transfer), order tracking by number+phone, customer account with order history and live Nova Poshta parcel status.
 - Admin (/admin): dashboard KPIs, charts, warehouse value/profit by category; orders workflow + Excel export; products with profit columns, money summary per filter, what-if markup calculator, bulk actions, Excel export; SEO center; supplier price changes; settings; supplier sync (manual + daily); Ctrl+K command palette; new-order alerts.
 
 ## User preferences

@@ -19,6 +19,7 @@ import CartPage from "@/pages/store/cart";
 import CheckoutPage from "@/pages/store/checkout";
 import OrderPage from "@/pages/store/order";
 import TrackPage from "@/pages/store/track";
+import AccountPage from "@/pages/store/account";
 import { SignInPage, SignUpPage } from "@/pages/auth";
 import DashboardPage from "@/pages/admin/dashboard";
 import OrdersPage from "@/pages/admin/orders";
@@ -159,6 +160,7 @@ function StoreRoutes() {
           <Route path="/checkout" component={CheckoutPage} />
           <Route path="/order/:number" component={OrderPage} />
           <Route path="/track" component={TrackPage} />
+          <Route path="/account" component={AccountPage} />
           <Route component={NotFound} />
         </Switch>
       </RoutedErrorBoundary>
@@ -189,12 +191,13 @@ function ClerkProviderWithRoutes() {
       signUpUrl={`${basePath}/sign-up`}
       localization={{
         ...ukUA,
+        formFieldInputPlaceholder__emailAddress: "Ваша електронна пошта",
         signIn: {
           ...ukUA.signIn,
           start: {
             ...ukUA.signIn?.start,
-            title: "Вхід для власника",
-            subtitle: "Увійдіть, щоб керувати магазином",
+            title: "Вхід у кабінет",
+            subtitle: "Ваші замовлення і де зараз посилка",
           },
         },
         signUp: {
@@ -202,7 +205,7 @@ function ClerkProviderWithRoutes() {
           start: {
             ...ukUA.signUp?.start,
             title: "Створити акаунт",
-            subtitle: "Реєстрація для власника магазину",
+            subtitle: "Щоб бачити свої замовлення і посилки",
           },
         },
       }}

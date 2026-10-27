@@ -7,6 +7,8 @@ export const ADMIN_EMAIL = (process.env.ADMIN_EMAIL ?? "rozhnyay@gmail.com").tri
 interface Identity {
   userId: string | null;
   email: string | null;
+  /** Lower-cased verified email addresses of the user. */
+  verifiedEmails: string[];
   isAdmin: boolean;
 }
 
@@ -15,7 +17,7 @@ const cache = new Map<string, { value: Identity; expires: number }>();
 export async function resolveIdentity(req: Request): Promise<Identity> {
   const auth = getAuth(req);
   const userId = (auth?.sessionClaims?.userId as string | undefined) || auth?.userId || null;
-  if (!userId) return { userId: null, email: null, isAdmin: false };
+  if (!userId) return { userId: null, email: null, verifiedEmails: [], isAdmin: false };
 
   const hit = cache.get(userId);
   if (hit && hit.expires > Date.now()) return hit.value;
@@ -24,8 +26,9 @@ export async function resolveIdentity(req: Request): Promise<Identity> {
   const verified = user.emailAddresses.filter((e) => e.verification?.status === "verified");
   const primary =
     user.emailAddresses.find((e) => e.id === user.primaryEmailAddressId)?.emailAddress ?? null;
-  const isAdmin = verified.some((e) => e.emailAddress.trim().toLowerCase() === ADMIN_EMAIL);
-  const value: Identity = { userId, email: primary, isAdmin };
+  const verifiedEmails = verified.map((e) => e.emailAddress.trim().toLowerCase());
+  const isAdmin = verifiedEmails.includes(ADMIN_EMAIL);
+  const value: Identity = { userId, email: primary, verifiedEmails, isAdmin };
   cache.set(userId, { value, expires: Date.now() + 60_000 });
   return value;
 }

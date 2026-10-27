@@ -12,6 +12,16 @@ export type ListAdminProductsParams = {
 search?: string;
 categoryId?: number;
 stock?: ListAdminProductsStock;
+/**
+ * Supplier stock at least this many units
+ * @minimum 0
+ */
+minQty?: number;
+/**
+ * Supplier stock at most this many units
+ * @minimum 0
+ */
+maxQty?: number;
 sort?: ListAdminProductsSort;
 /**
  * @minimum 1

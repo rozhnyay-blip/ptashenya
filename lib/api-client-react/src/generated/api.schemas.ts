@@ -523,6 +523,68 @@ export interface ProductsSummary {
   whatIf?: WhatIfMoney | null;
 }
 
+export interface ZoneMoney {
+  costValue: number;
+  retailValue: number;
+  profit: number;
+  marginPercent: number;
+}
+
+export interface StockZone {
+  /** Sellable products in this zone */
+  positions: number;
+  /** All units (range minimum where only a range is known) */
+  units: number;
+  approxPositions: number;
+  /** Largest single-product stock in the zone */
+  biggestStock: number;
+  oneUnit: ZoneMoney;
+  allUnits: ZoneMoney;
+}
+
+export interface StockBucket {
+  label: string;
+  minQty: number;
+  /** @nullable */
+  maxQty: number | null;
+  positions: number;
+  /** Of which ship within 3 days */
+  readyPositions: number;
+  units: number;
+  /** All units at purchase price */
+  costValue: number;
+  /** All units at store prices */
+  retailValue: number;
+}
+
+export interface StockTopProduct {
+  id: number;
+  sku: string;
+  name: string;
+  /** @nullable */
+  imageUrl: string | null;
+  /** @nullable */
+  stockQty: number | null;
+  /** @nullable */
+  stockQtyMax: number | null;
+  /** @nullable */
+  deliveryDays: number | null;
+  price: number;
+  /** All units at purchase price */
+  costValue: number;
+  /** All units at store price */
+  retailValue: number;
+}
+
+export interface StockOverview {
+  markupPercent: number;
+  ready: StockZone;
+  onOrder: StockZone;
+  total: StockZone;
+  buckets: StockBucket[];
+  topByValue: StockTopProduct[];
+}
+
 export type BulkProductActionAction = typeof BulkProductActionAction[keyof typeof BulkProductActionAction];
 
 
@@ -723,6 +785,16 @@ export type ListAdminProductsParams = {
 search?: string;
 categoryId?: number;
 stock?: ListAdminProductsStock;
+/**
+ * Supplier stock at least this many units
+ * @minimum 0
+ */
+minQty?: number;
+/**
+ * Supplier stock at most this many units
+ * @minimum 0
+ */
+maxQty?: number;
 sort?: ListAdminProductsSort;
 /**
  * @minimum 1
@@ -740,6 +812,7 @@ export type ListAdminProductsStock = typeof ListAdminProductsStock[keyof typeof 
 
 export const ListAdminProductsStock = {
   all: 'all',
+  available: 'available',
   in_stock: 'in_stock',
   on_order: 'on_order',
   out_of_stock: 'out_of_stock',
@@ -764,6 +837,16 @@ search?: string;
 categoryId?: number;
 stock?: GetAdminProductsSummaryStock;
 /**
+ * Supplier stock at least this many units
+ * @minimum 0
+ */
+minQty?: number;
+/**
+ * Supplier stock at most this many units
+ * @minimum 0
+ */
+maxQty?: number;
+/**
  * Also compute revenue and profit as if the store markup were this percent
  * @minimum 0
  * @maximum 500
@@ -776,6 +859,7 @@ export type GetAdminProductsSummaryStock = typeof GetAdminProductsSummaryStock[k
 
 export const GetAdminProductsSummaryStock = {
   all: 'all',
+  available: 'available',
   in_stock: 'in_stock',
   on_order: 'on_order',
   out_of_stock: 'out_of_stock',

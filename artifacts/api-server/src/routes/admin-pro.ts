@@ -19,7 +19,7 @@ import {
 } from "@workspace/api-zod";
 import { requireAdmin } from "../middlewares/auth";
 import { getSettings, retailPrice, retailPriceSql } from "../lib/settings";
-import { adminProductFilter, allUnitsSql, approxUnitsSql, oneUnitSql } from "../lib/admin-filters";
+import { adminProductFilter, allUnitsSql, approxUnitsSql, moneyBaseSql, onOrderSql, oneUnitSql, readySql, sellableSql, unitSqls } from "../lib/admin-filters";
 import { toAdminProduct } from "../lib/serialize";
 import { SEO_PLACEHOLDERS, isSeoRunning, runSeo } from "../lib/seo";
 
@@ -42,20 +42,21 @@ function allUnitsMoney(r: { units?: number | null; approx?: number | null; cost?
   };
 }
 
-/** Stock money as of the latest sync: one unit of every product a customer can buy today. */
-async function moneyTotals(where: SQL | undefined) {
+/** Stock money as of the latest sync over `base` (default: ready-to-ship products a customer can buy today). */
+async function moneyTotals(where: SQL | undefined, base: SQL = readySql) {
   const s = await getSettings();
   const price = retailPriceSql(s);
+  const u = unitSqls(base);
   const [row] = await db
     .select({
       positions: sql<number>`count(*)::int`,
-      positionsWithStock: sql<number>`coalesce(sum(${oneUnitSql}), 0)::int`,
-      cost: sql<number>`coalesce(sum(${oneUnitSql} * coalesce(products.supplier_price, 0)), 0)::float8`,
-      retail: sql<number>`coalesce(sum(${oneUnitSql} * ${price}), 0)::float8`,
-      units: sql<number>`coalesce(sum(${allUnitsSql}), 0)::int`,
-      approx: sql<number>`coalesce(sum(${approxUnitsSql}), 0)::int`,
-      allCost: sql<number>`coalesce(sum(${allUnitsSql} * coalesce(products.supplier_price, 0)), 0)::float8`,
-      allRetail: sql<number>`coalesce(sum(${allUnitsSql} * ${price}), 0)::float8`,
+      positionsWithStock: sql<number>`coalesce(sum(${u.one}), 0)::int`,
+      cost: sql<number>`coalesce(sum(${u.one} * coalesce(products.supplier_price, 0)), 0)::float8`,
+      retail: sql<number>`coalesce(sum(${u.one} * ${price}), 0)::float8`,
+      units: sql<number>`coalesce(sum(${u.all}), 0)::int`,
+      approx: sql<number>`coalesce(sum(${u.approx}), 0)::int`,
+      allCost: sql<number>`coalesce(sum(${u.all} * coalesce(products.supplier_price, 0)), 0)::float8`,
+      allRetail: sql<number>`coalesce(sum(${u.all} * ${price}), 0)::float8`,
     })
     .from(productsTable)
     .where(where);
@@ -81,15 +82,17 @@ router.get("/admin/products/summary", async (req, res) => {
     return;
   }
   const where = await adminProductFilter(parsed.data);
-  const totals = await moneyTotals(where);
+  const base = moneyBaseSql(parsed.data.stock);
+  const totals = await moneyTotals(where, base);
   let whatIf = null;
   if (parsed.data.whatIfMarkup !== undefined) {
     const s = await getSettings();
     const price = retailPriceSql({ markupPercent: parsed.data.whatIfMarkup, roundPrices: s.roundPrices });
+    const u = unitSqls(base);
     const [row] = await db
       .select({
-        retail: sql<number>`coalesce(sum(${oneUnitSql} * ${price}), 0)::float8`,
-        allRetail: sql<number>`coalesce(sum(${allUnitsSql} * ${price}), 0)::float8`,
+        retail: sql<number>`coalesce(sum(${u.one} * ${price}), 0)::float8`,
+        allRetail: sql<number>`coalesce(sum(${u.all} * ${price}), 0)::float8`,
       })
       .from(productsTable)
       .where(where);
@@ -143,6 +146,104 @@ router.post("/admin/products/bulk", async (req, res) => {
     .where(inArray(productsTable.id, ids))
     .returning({ id: productsTable.id });
   res.json({ updated: rows.length });
+});
+
+const STOCK_BUCKETS = [
+  { label: "1–9 шт", minQty: 1, maxQty: 9 },
+  { label: "10–99 шт", minQty: 10, maxQty: 99 },
+  { label: "100–999 шт", minQty: 100, maxQty: 999 },
+  { label: "1000+ шт", minQty: 1000, maxQty: null },
+] as const;
+
+/** Stock split by delivery speed: ready to ship (≤3 days), on order (partner warehouse), and both together. */
+router.get("/admin/stock-overview", async (_req, res) => {
+  const s = await getSettings();
+  const price = retailPriceSql(s);
+  const zoneFields = (prefix: string, base: SQL) => {
+    const u = unitSqls(base);
+    return {
+      [`${prefix}Positions`]: sql<number>`coalesce(sum(${u.one}), 0)::int`,
+      [`${prefix}Units`]: sql<number>`coalesce(sum(${u.all}), 0)::int`,
+      [`${prefix}Approx`]: sql<number>`coalesce(sum(${u.approx}), 0)::int`,
+      [`${prefix}Biggest`]: sql<number>`coalesce(max(case when ${base} then products.stock_qty end), 0)::int`,
+      [`${prefix}Cost1`]: sql<number>`coalesce(sum(${u.one} * coalesce(products.supplier_price, 0)), 0)::float8`,
+      [`${prefix}Retail1`]: sql<number>`coalesce(sum(${u.one} * ${price}), 0)::float8`,
+      [`${prefix}CostAll`]: sql<number>`coalesce(sum(${u.all} * coalesce(products.supplier_price, 0)), 0)::float8`,
+      [`${prefix}RetailAll`]: sql<number>`coalesce(sum(${u.all} * ${price}), 0)::float8`,
+    };
+  };
+  const qty = sql`coalesce(products.stock_qty, 1)`;
+  const bucketIdx = sql`(case when ${qty} >= 1000 then 3 when ${qty} >= 100 then 2 when ${qty} >= 10 then 1 else 0 end)`;
+  const [[z], bucketRows, top] = await Promise.all([
+    db
+      .select({ ...zoneFields("r", readySql), ...zoneFields("o", onOrderSql), ...zoneFields("t", sellableSql) })
+      .from(productsTable),
+    db
+      .select({
+        idx: sql<number>`${bucketIdx}::int`,
+        positions: sql<number>`count(*)::int`,
+        ready: sql<number>`(count(*) filter (where ${readySql}))::int`,
+        units: sql<number>`sum(${qty})::int`,
+        cost: sql<number>`sum(${qty} * coalesce(products.supplier_price, 0))::float8`,
+        retail: sql<number>`sum(${qty} * ${price})::float8`,
+      })
+      .from(productsTable)
+      .where(sql`${sellableSql} and ${qty} > 0`)
+      .groupBy(sql`1`),
+    db
+      .select({
+        p: productsTable,
+        retailOne: sql<number>`${price}::float8`,
+      })
+      .from(productsTable)
+      .where(sql`${sellableSql} and products.stock_qty > 0`)
+      .orderBy(sql`products.stock_qty * coalesce(products.supplier_price, 0) desc`)
+      .limit(10),
+  ]);
+  const row = z as Record<string, number>;
+  const money = (cost: number, retail: number) => ({
+    costValue: round2(cost),
+    retailValue: round2(retail),
+    profit: round2(retail - cost),
+    marginPercent: margin(retail, cost),
+  });
+  const zone = (p: string) => ({
+    positions: Number(row[`${p}Positions`] ?? 0),
+    units: Number(row[`${p}Units`] ?? 0),
+    approxPositions: Number(row[`${p}Approx`] ?? 0),
+    biggestStock: Number(row[`${p}Biggest`] ?? 0),
+    oneUnit: money(Number(row[`${p}Cost1`] ?? 0), Number(row[`${p}Retail1`] ?? 0)),
+    allUnits: money(Number(row[`${p}CostAll`] ?? 0), Number(row[`${p}RetailAll`] ?? 0)),
+  });
+  res.json({
+    markupPercent: Number(s.markupPercent),
+    ready: zone("r"),
+    onOrder: zone("o"),
+    total: zone("t"),
+    buckets: STOCK_BUCKETS.map((b, i) => {
+      const r = bucketRows.find((x) => Number(x.idx) === i);
+      return {
+        ...b,
+        positions: r?.positions ?? 0,
+        readyPositions: r?.ready ?? 0,
+        units: r?.units ?? 0,
+        costValue: round2(Number(r?.cost ?? 0)),
+        retailValue: round2(Number(r?.retail ?? 0)),
+      };
+    }),
+    topByValue: top.map(({ p, retailOne }) => ({
+      id: p.id,
+      sku: p.sku,
+      name: p.name,
+      imageUrl: p.imageUrl,
+      stockQty: p.stockQty,
+      stockQtyMax: p.stockQtyMax,
+      deliveryDays: p.deliveryDays,
+      price: round2(retailOne),
+      costValue: round2((p.stockQty ?? 0) * (p.supplierPrice ?? 0)),
+      retailValue: round2((p.stockQty ?? 0) * retailOne),
+    })),
+  });
 });
 
 router.get("/admin/inventory", async (_req, res) => {

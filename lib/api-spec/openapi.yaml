@@ -356,7 +356,9 @@ paths:
           required: false
           schema:
             type: string
-            enum: [all, in_stock, on_order, out_of_stock, hidden]
+            enum: [all, available, in_stock, on_order, out_of_stock, hidden]
+        - { name: minQty, in: query, required: false, description: "Supplier stock at least this many units", schema: { type: integer, minimum: 0 } }
+        - { name: maxQty, in: query, required: false, description: "Supplier stock at most this many units", schema: { type: integer, minimum: 0 } }
         - name: sort
           in: query
           required: false
@@ -386,7 +388,9 @@ paths:
           required: false
           schema:
             type: string
-            enum: [all, in_stock, on_order, out_of_stock, hidden]
+            enum: [all, available, in_stock, on_order, out_of_stock, hidden]
+        - { name: minQty, in: query, required: false, description: "Supplier stock at least this many units", schema: { type: integer, minimum: 0 } }
+        - { name: maxQty, in: query, required: false, description: "Supplier stock at most this many units", schema: { type: integer, minimum: 0 } }
         - name: whatIfMarkup
           in: query
           required: false
@@ -431,6 +435,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/InventoryReport"
+
+  /admin/stock-overview:
+    get:
+      operationId: getAdminStockOverview
+      tags: [admin]
+      summary: Supplier stock split by delivery speed (ready to ship vs on order vs total), quantity buckets and biggest stocks
+      responses:
+        "200":
+          description: Stock overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockOverview"
 
   /admin/price-changes:
     get:
@@ -1098,6 +1115,69 @@ components:
         retailValue: { type: number }
         profit: { type: number }
         marginPercent: { type: number }
+
+    ZoneMoney:
+      type: object
+      required: [costValue, retailValue, profit, marginPercent]
+      properties:
+        costValue: { type: number }
+        retailValue: { type: number }
+        profit: { type: number }
+        marginPercent: { type: number }
+
+    StockZone:
+      type: object
+      required: [positions, units, approxPositions, biggestStock, oneUnit, allUnits]
+      properties:
+        positions: { type: integer, description: "Sellable products in this zone" }
+        units: { type: integer, description: "All units (range minimum where only a range is known)" }
+        approxPositions: { type: integer }
+        biggestStock: { type: integer, description: "Largest single-product stock in the zone" }
+        oneUnit: { $ref: "#/components/schemas/ZoneMoney" }
+        allUnits: { $ref: "#/components/schemas/ZoneMoney" }
+
+    StockBucket:
+      type: object
+      required: [label, minQty, maxQty, positions, readyPositions, units, costValue, retailValue]
+      properties:
+        label: { type: string }
+        minQty: { type: integer }
+        maxQty: { type: ["integer", "null"] }
+        positions: { type: integer }
+        readyPositions: { type: integer, description: "Of which ship within 3 days" }
+        units: { type: integer }
+        costValue: { type: number, description: "All units at purchase price" }
+        retailValue: { type: number, description: "All units at store prices" }
+
+    StockTopProduct:
+      type: object
+      required: [id, sku, name, imageUrl, stockQty, stockQtyMax, deliveryDays, price, costValue, retailValue]
+      properties:
+        id: { type: integer }
+        sku: { type: string }
+        name: { type: string }
+        imageUrl: { type: ["string", "null"] }
+        stockQty: { type: ["integer", "null"] }
+        stockQtyMax: { type: ["integer", "null"] }
+        deliveryDays: { type: ["integer", "null"] }
+        price: { type: number }
+        costValue: { type: number, description: "All units at purchase price" }
+        retailValue: { type: number, description: "All units at store price" }
+
+    StockOverview:
+      type: object
+      required: [markupPercent, ready, onOrder, total, buckets, topByValue]
+      properties:
+        markupPercent: { type: number }
+        ready: { $ref: "#/components/schemas/StockZone" }
+        onOrder: { $ref: "#/components/schemas/StockZone" }
+        total: { $ref: "#/components/schemas/StockZone" }
+        buckets:
+          type: array
+          items: { $ref: "#/components/schemas/StockBucket" }
+        topByValue:
+          type: array
+          items: { $ref: "#/components/schemas/StockTopProduct" }
 
     BulkProductAction:
       type: object

@@ -56,6 +56,7 @@ import type {
   SeoRunResult,
   SeoSettingsInput,
   SeoStatus,
+  StockOverview,
   StoreSettings,
   StoreSettingsInput,
   StorefrontHighlights,
@@ -1943,6 +1944,83 @@ export function useGetAdminInventory<TData = Awaited<ReturnType<typeof getAdminI
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetAdminInventoryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminStockOverviewUrl = () => {
+
+
+
+
+  return `/api/admin/stock-overview`
+}
+
+/**
+ * @summary Supplier stock split by delivery speed (ready to ship vs on order vs total), quantity buckets and biggest stocks
+ */
+export const getAdminStockOverview = async ( options?: Parameters<typeof customFetch>[1]): Promise<StockOverview> => {
+
+  return customFetch<StockOverview>(getGetAdminStockOverviewUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminStockOverviewQueryKey = () => {
+    return [
+    `/api/admin/stock-overview`
+    ] as const;
+    }
+
+
+export const getGetAdminStockOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getAdminStockOverview>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminStockOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminStockOverviewQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminStockOverview>>> = ({ signal }) => getAdminStockOverview({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminStockOverview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminStockOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminStockOverview>>>
+export type GetAdminStockOverviewQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Supplier stock split by delivery speed (ready to ship vs on order vs total), quantity buckets and biggest stocks
+ */
+
+export function useGetAdminStockOverview<TData = Awaited<ReturnType<typeof getAdminStockOverview>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminStockOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminStockOverviewQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

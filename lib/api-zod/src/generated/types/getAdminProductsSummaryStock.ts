@@ -11,6 +11,7 @@ export type GetAdminProductsSummaryStock = typeof GetAdminProductsSummaryStock[k
 
 export const GetAdminProductsSummaryStock = {
   all: 'all',
+  available: 'available',
   in_stock: 'in_stock',
   on_order: 'on_order',
   out_of_stock: 'out_of_stock',

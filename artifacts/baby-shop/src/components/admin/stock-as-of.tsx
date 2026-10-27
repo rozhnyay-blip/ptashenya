@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import {
   useGetSyncStatus, getGetSyncStatusQueryKey, getGetAdminProductsSummaryQueryKey, getGetAdminInventoryQueryKey,
-  getListAdminProductsQueryKey, getGetAdminDashboardQueryKey,
+  getListAdminProductsQueryKey, getGetAdminDashboardQueryKey, getGetAdminStockOverviewQueryKey,
 } from "@workspace/api-client-react";
 import { SyncButton } from "@/components/admin/sync-button";
 import { cn } from "@/lib/utils";
@@ -20,7 +20,7 @@ export function StockAsOf({ className }: { className?: string }) {
   useEffect(() => {
     if (!sync) return;
     if (wasRunning.current && !sync.running) {
-      [getGetAdminProductsSummaryQueryKey(), getGetAdminInventoryQueryKey(), getListAdminProductsQueryKey(), getGetAdminDashboardQueryKey()].forEach((k) => qc.invalidateQueries({ queryKey: k }));
+      [getGetAdminProductsSummaryQueryKey(), getGetAdminInventoryQueryKey(), getListAdminProductsQueryKey(), getGetAdminDashboardQueryKey(), getGetAdminStockOverviewQueryKey()].forEach((k) => qc.invalidateQueries({ queryKey: k }));
     }
     wasRunning.current = sync.running;
   }, [sync, qc]);

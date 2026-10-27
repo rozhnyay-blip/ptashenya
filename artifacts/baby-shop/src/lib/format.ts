@@ -6,6 +6,15 @@ export function uah(n: number | null | undefined): string {
   const s = rounded.toLocaleString("uk-UA", { minimumFractionDigits: hasCents ? 2 : 0, maximumFractionDigits: 2 }).replace(/\u00a0|\u202f/g, " ");
   return s + " ₴";
 }
+/** Short money for big figures: "940,9 млн ₴", "1,2 млрд ₴"; below a million — full amount. */
+export function uahShort(n: number | null | undefined): string {
+  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  const a = Math.abs(n);
+  const fmt = (v: number) => v.toLocaleString("uk-UA", { maximumFractionDigits: 1 }).replace(/\u00a0|\u202f/g, " ");
+  if (a >= 1e9) return `${fmt(n / 1e9)} млрд ₴`;
+  if (a >= 1e6) return `${fmt(n / 1e6)} млн ₴`;
+  return uah(Math.round(n));
+}
 export function num(n: number | null | undefined): string {
   if (n === null || n === undefined) return "—";
   return n.toLocaleString("uk-UA").replace(/\u00a0|\u202f/g, " ");

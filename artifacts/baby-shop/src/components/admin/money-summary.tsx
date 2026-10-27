@@ -46,15 +46,22 @@ export function MoneySummary({ params }: { params: GetAdminProductsSummaryParams
   const markup = m ?? s.markupPercent;
   const same = markup === s.markupPercent;
   const all = mode === "all";
+  const zone = params.stock === "on_order" ? "Під замовлення, 7–10 днів" : params.stock === "available" ? "Усе в наявності (обидва склади)" : "В наявності, відправка до 3 днів";
+  const zoneText = params.stock === "on_order" ? "які постачальник везе з іншого складу (7–10 днів)" : params.stock === "available" ? "які є в наявності — і до 3 днів, і під замовлення (7–10 днів)" : "які сьогодні є на власному складі постачальника (відправка до 3 днів)";
+  const zoneTextOne = params.stock === "on_order" ? "який постачальник везе з іншого складу (7–10 днів)" : params.stock === "available" ? "який є в наявності — і до 3 днів, і під замовлення (7–10 днів)" : "який сьогодні є на власному складі постачальника (відправка до 3 днів)";
+  const excluded = params.stock === "on_order" || params.stock === "available" ? "Приховані товари й товари без ціни не рахуються." : "Товари «під замовлення» (7–10 днів), приховані й без ціни не рахуються.";
   const cur = all ? s.allUnits : s;
   const wiv = wi?.whatIf ? (all ? { retailValue: wi.whatIf.allUnitsRetailValue, profit: wi.whatIf.allUnitsProfit } : wi.whatIf) : null;
   const w = same ? { retailValue: cur.retailValue, profit: cur.profit } : wiv;
   const qs = new URLSearchParams();
   if (params.search) qs.set("search", params.search);
   if (params.categoryId) qs.set("categoryId", String(params.categoryId));
-  qs.set("stock", "in_stock");
+  const listStock = params.stock === "on_order" || params.stock === "available" ? params.stock : "in_stock";
+  qs.set("stock", listStock);
+  if (params.minQty !== undefined) qs.set("minQty", String(params.minQty));
+  if (params.maxQty !== undefined) qs.set("maxQty", String(params.maxQty));
   const exportHref = `${import.meta.env.BASE_URL}api/admin/export/products.csv?${qs}`;
-  const listHref = `/admin/products?${new URLSearchParams({ ...(params.search ? { q: params.search } : {}), ...(params.categoryId ? { cat: String(params.categoryId) } : {}), stock: "in_stock" })}`;
+  const listHref = `/admin/products?${new URLSearchParams({ ...(params.search ? { q: params.search } : {}), ...(params.categoryId ? { cat: String(params.categoryId) } : {}), stock: listStock, ...(params.minQty !== undefined ? { minQty: String(params.minQty) } : {}), ...(params.maxQty !== undefined ? { maxQty: String(params.maxQty) } : {}) })}`;
   const btn = "inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-xs font-semibold transition hover:bg-muted";
   const pending = !same && (wiLoading || !w || wi?.whatIf?.markupPercent !== markup);
   const changed = Math.round(markup) !== Math.round(s.markupPercent);
@@ -72,7 +79,7 @@ export function MoneySummary({ params }: { params: GetAdminProductsSummaryParams
       <section className="rounded-2xl border border-card-border bg-card p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-0">
-            <h2 className="text-sm font-bold">{all ? "В наявності, відправка до 3 днів — усі штуки" : "В наявності, відправка до 3 днів — по 1 шт. кожного"}</h2>
+            <h2 className="text-sm font-bold">{zone} — {all ? "усі штуки" : "по 1 шт. кожного"}</h2>
             <span className="font-mono text-[11px] text-muted-foreground tabular" data-testid="text-summary-positions">
               {all ? `${num(s.allUnits.units)} шт · ${num(s.positionsWithStock)} товарів` : `${num(s.positionsWithStock)} товарів × 1 шт`}
             </span>
@@ -87,8 +94,8 @@ export function MoneySummary({ params }: { params: GetAdminProductsSummaryParams
         </div>
         <p className="mt-3 flex gap-1.5 text-[11px] leading-snug text-muted-foreground"><Info className="mt-px h-3 w-3 shrink-0" />
           <span>{all
-            ? <>Рахуються всі штуки, які сьогодні є на власному складі постачальника (відправка до 3 днів). {s.allUnits.approxPositions > 0 && <>Для {num(s.allUnits.approxPositions)} товарів постачальник показує лише «від–до» (наприклад, 10…50 або понад 100) — беремо мінімум, тож насправді може бути трохи більше. </>}Товари «під замовлення» (везуть до 7 днів), приховані й без ціни не рахуються.</>
-            : <>Кожен товар, який сьогодні є на власному складі постачальника (відправка до 3 днів) і продається у вашому магазині, рахується рівно 1 раз (1 шт.), незалежно від того, скільки штук на складі. Товари «під замовлення» (везуть до 7 днів), приховані й без ціни не рахуються.</>}</span></p>
+            ? <>Рахуються всі штуки товарів, {zoneText}. {s.allUnits.approxPositions > 0 && <>Для {num(s.allUnits.approxPositions)} товарів постачальник показує лише «від–до» (наприклад, 10…50 або понад 100) — беремо мінімум, тож насправді може бути трохи більше. </>}{excluded}</>
+            : <>Кожен товар, {zoneTextOne}, рахується рівно 1 раз (1 шт.), незалежно від того, скільки штук на складі. {excluded}</>}</span></p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Link href={listHref} className={btn} data-testid="button-summary-show-list"><ListFilter className="h-3.5 w-3.5" />Показати ці товари</Link>
           <a href={exportHref} download className={btn} data-testid="button-summary-export"><Download className="h-3.5 w-3.5" />Завантажити список (Excel)</a>

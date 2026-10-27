@@ -11,6 +11,7 @@ import {
 import { PageHead, Panel, StatusPill } from "@/components/admin/admin-layout";
 import { SyncButton } from "@/components/admin/sync-button";
 import { InventoryPanels } from "@/components/admin/inventory-panels";
+import { StockOverviewPanel } from "@/components/admin/stock-overview";
 import { ProductImage } from "@/components/store/product-image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { dateTime, num, relTime, uah } from "@/lib/format";
@@ -70,6 +71,7 @@ export default function DashboardPage() {
         <Kpi label="Покупців" value={num(d.customersTotal)} sub={`всього ${num(d.ordersTotal)} замовл. · ${uah(d.revenueTotal)}`} />
       </div>
 
+      <StockOverviewPanel />
       <InventoryPanels />
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_340px]">

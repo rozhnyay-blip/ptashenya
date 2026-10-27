@@ -12,6 +12,6 @@ description: How the catalog is sourced from toysi.ua and its non-obvious limits
 **Why:** the user wanted to count each product once, then also all units, and to switch between the two.
 **Why:** first version took the first number, so stock money was silently understated and items at "5...10" showed "Лишилось 5 шт.".
 **How to apply:** never present a single stock number as exact unless min == max.
-- "Під замовлення" items (partner warehouse, "Термін доставки до 7 днів") are mixed into normal supplier categories; a card is on-order when its hidden `supplierStock<ID>` input has a value. Admin stock figures count only own-warehouse items (≤3 days) — owner decision 2026-10-26.
+- "Під замовлення" items (partner warehouse, "Термін доставки до 7/10 днів") are mixed into normal supplier categories; a card is on-order when its hidden `supplierStock<ID>` input has a value. The supplier's own "Під замовлення" category lists only a fraction of them (~1.8k vs ~16k found by listing parse) — never backfill from it. Big stocks (1000+) are all on-order; own-warehouse counts top out around 100. Admin stock figures default to own-warehouse items (≤3 days) — owner decision 2026-10-26; on 2026-10-27 the owner also asked to see on-order and total figures side by side (stock overview panel).
 **Why:** the owner wants to see/count only what can be delivered within 3 days.
 **How to apply:** any new admin "in stock" figure must use the ready-to-ship condition, not plain in_stock.

@@ -12,6 +12,16 @@ search?: string;
 categoryId?: number;
 stock?: GetAdminProductsSummaryStock;
 /**
+ * Supplier stock at least this many units
+ * @minimum 0
+ */
+minQty?: number;
+/**
+ * Supplier stock at most this many units
+ * @minimum 0
+ */
+maxQty?: number;
+/**
  * Also compute revenue and profit as if the store markup were this percent
  * @minimum 0
  * @maximum 500

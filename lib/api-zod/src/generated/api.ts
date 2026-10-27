@@ -603,6 +603,10 @@ export const UpdateAdminOrderResponse = zod.object({
 /**
  * @summary All products including hidden and out of stock
  */
+export const listAdminProductsQueryMinQtyMin = 0;
+
+export const listAdminProductsQueryMaxQtyMin = 0;
+
 
 export const listAdminProductsQueryLimitMax = 100;
 
@@ -611,7 +615,9 @@ export const listAdminProductsQueryLimitMax = 100;
 export const ListAdminProductsQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
   "categoryId": zod.coerce.number().int().optional(),
-  "stock": zod.enum(['all', 'in_stock', 'on_order', 'out_of_stock', 'hidden']).optional(),
+  "stock": zod.enum(['all', 'available', 'in_stock', 'on_order', 'out_of_stock', 'hidden']).optional(),
+  "minQty": zod.coerce.number().int().min(listAdminProductsQueryMinQtyMin).optional().describe('Supplier stock at least this many units'),
+  "maxQty": zod.coerce.number().int().min(listAdminProductsQueryMaxQtyMin).optional().describe('Supplier stock at most this many units'),
   "sort": zod.enum(['newest', 'profit_desc', 'stock_value_desc', 'price_asc', 'price_desc', 'stock_desc', 'sales_desc']).optional(),
   "page": zod.coerce.number().int().min(1).optional(),
   "limit": zod.coerce.number().int().min(1).max(listAdminProductsQueryLimitMax).optional()
@@ -654,6 +660,10 @@ export const ListAdminProductsResponse = zod.object({
 /**
  * @summary Stock value and potential profit for the products matching the filter
  */
+export const getAdminProductsSummaryQueryMinQtyMin = 0;
+
+export const getAdminProductsSummaryQueryMaxQtyMin = 0;
+
 export const getAdminProductsSummaryQueryWhatIfMarkupMin = 0;
 export const getAdminProductsSummaryQueryWhatIfMarkupMax = 500;
 
@@ -662,7 +672,9 @@ export const getAdminProductsSummaryQueryWhatIfMarkupMax = 500;
 export const GetAdminProductsSummaryQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
   "categoryId": zod.coerce.number().int().optional(),
-  "stock": zod.enum(['all', 'in_stock', 'on_order', 'out_of_stock', 'hidden']).optional(),
+  "stock": zod.enum(['all', 'available', 'in_stock', 'on_order', 'out_of_stock', 'hidden']).optional(),
+  "minQty": zod.coerce.number().int().min(getAdminProductsSummaryQueryMinQtyMin).optional().describe('Supplier stock at least this many units'),
+  "maxQty": zod.coerce.number().int().min(getAdminProductsSummaryQueryMaxQtyMin).optional().describe('Supplier stock at most this many units'),
   "whatIfMarkup": zod.coerce.number().min(getAdminProductsSummaryQueryWhatIfMarkupMin).max(getAdminProductsSummaryQueryWhatIfMarkupMax).optional().describe('Also compute revenue and profit as if the store markup were this percent')
 })
 
@@ -771,6 +783,90 @@ export const GetAdminInventoryResponse = zod.object({
   "profitPerUnit": zod.number().nullish().describe('Retail minus purchase price'),
   "seoTitle": zod.string().nullish()
 })))
+})
+
+
+/**
+ * @summary Supplier stock split by delivery speed (ready to ship vs on order vs total), quantity buckets and biggest stocks
+ */
+export const GetAdminStockOverviewResponse = zod.object({
+  "markupPercent": zod.number(),
+  "ready": zod.object({
+  "positions": zod.number().int().describe('Sellable products in this zone'),
+  "units": zod.number().int().describe('All units (range minimum where only a range is known)'),
+  "approxPositions": zod.number().int(),
+  "biggestStock": zod.number().int().describe('Largest single-product stock in the zone'),
+  "oneUnit": zod.object({
+  "costValue": zod.number(),
+  "retailValue": zod.number(),
+  "profit": zod.number(),
+  "marginPercent": zod.number()
+}),
+  "allUnits": zod.object({
+  "costValue": zod.number(),
+  "retailValue": zod.number(),
+  "profit": zod.number(),
+  "marginPercent": zod.number()
+})
+}),
+  "onOrder": zod.object({
+  "positions": zod.number().int().describe('Sellable products in this zone'),
+  "units": zod.number().int().describe('All units (range minimum where only a range is known)'),
+  "approxPositions": zod.number().int(),
+  "biggestStock": zod.number().int().describe('Largest single-product stock in the zone'),
+  "oneUnit": zod.object({
+  "costValue": zod.number(),
+  "retailValue": zod.number(),
+  "profit": zod.number(),
+  "marginPercent": zod.number()
+}),
+  "allUnits": zod.object({
+  "costValue": zod.number(),
+  "retailValue": zod.number(),
+  "profit": zod.number(),
+  "marginPercent": zod.number()
+})
+}),
+  "total": zod.object({
+  "positions": zod.number().int().describe('Sellable products in this zone'),
+  "units": zod.number().int().describe('All units (range minimum where only a range is known)'),
+  "approxPositions": zod.number().int(),
+  "biggestStock": zod.number().int().describe('Largest single-product stock in the zone'),
+  "oneUnit": zod.object({
+  "costValue": zod.number(),
+  "retailValue": zod.number(),
+  "profit": zod.number(),
+  "marginPercent": zod.number()
+}),
+  "allUnits": zod.object({
+  "costValue": zod.number(),
+  "retailValue": zod.number(),
+  "profit": zod.number(),
+  "marginPercent": zod.number()
+})
+}),
+  "buckets": zod.array(zod.object({
+  "label": zod.string(),
+  "minQty": zod.number().int(),
+  "maxQty": zod.number().int().nullable(),
+  "positions": zod.number().int(),
+  "readyPositions": zod.number().int().describe('Of which ship within 3 days'),
+  "units": zod.number().int(),
+  "costValue": zod.number().describe('All units at purchase price'),
+  "retailValue": zod.number().describe('All units at store prices')
+})),
+  "topByValue": zod.array(zod.object({
+  "id": zod.number().int(),
+  "sku": zod.string(),
+  "name": zod.string(),
+  "imageUrl": zod.string().nullable(),
+  "stockQty": zod.number().int().nullable(),
+  "stockQtyMax": zod.number().int().nullable(),
+  "deliveryDays": zod.number().int().nullable(),
+  "price": zod.number(),
+  "costValue": zod.number().describe('All units at purchase price'),
+  "retailValue": zod.number().describe('All units at store price')
+}))
 })
 
 

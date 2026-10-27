@@ -14,11 +14,11 @@ import { useToast } from "@/hooks/use-toast";
 import { apiError, num, uah } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const STOCKS: { v: ListAdminProductsStock; l: string }[] = [{ v: "all", l: "Усі" }, { v: "in_stock", l: "В наявності (до 3 днів)" }, { v: "on_order", l: "Під замовлення (до 7 днів)" }, { v: "out_of_stock", l: "Закінчились" }, { v: "hidden", l: "Приховані" }];
+const STOCKS: { v: ListAdminProductsStock; l: string }[] = [{ v: "all", l: "Усі" }, { v: "available", l: "Усе в наявності" }, { v: "in_stock", l: "До 3 днів" }, { v: "on_order", l: "Під замовлення (7–10 дн)" }, { v: "out_of_stock", l: "Закінчились" }, { v: "hidden", l: "Приховані" }];
 
 const SORTS: { v: ListAdminProductsSort; l: string }[] = [
   { v: "newest", l: "Спочатку нові" }, { v: "profit_desc", l: "Найбільший прибуток з 1 шт" },
-  { v: "price_asc", l: "Ціна: дешевші" }, { v: "price_desc", l: "Ціна: дорожчі" }, { v: "stock_desc", l: "Найбільший залишок" }, { v: "sales_desc", l: "Найбільше продажів" },
+  { v: "price_asc", l: "Ціна: дешевші" }, { v: "price_desc", l: "Ціна: дорожчі" }, { v: "stock_desc", l: "Найбільший залишок" }, { v: "stock_value_desc", l: "Найбільший прибуток із запасу" }, { v: "sales_desc", l: "Найбільше продажів" },
 ];
 const exportBase = `${import.meta.env.BASE_URL}api/admin/export/products.csv`;
 
@@ -50,6 +50,10 @@ export default function ProductsPage() {
   const stock = (sp.get("stock") as ListAdminProductsStock) || "all";
   const sort = (sp.get("sort") as ListAdminProductsSort) || "newest";
   const page = Number(sp.get("page") || 1);
+  const qtyNum = (k: string) => { const v = sp.get(k); return v !== null && /^\d+$/.test(v) ? Number(v) : undefined; };
+  const minQty = qtyNum("minQty");
+  const maxQty = qtyNum("maxQty");
+  const qtyLabel = minQty !== undefined && maxQty !== undefined ? `${num(minQty)}–${num(maxQty)} шт` : minQty !== undefined ? `від ${num(minQty)} шт` : maxQty !== undefined ? `до ${num(maxQty)} шт` : null;
   const [sel, setSel] = useState<Set<number>>(new Set());
   const [bulkPrice, setBulkPrice] = useState<string | null>(null);
   useEffect(() => setSel(new Set()), [search]);
@@ -61,7 +65,7 @@ export default function ProductsPage() {
     if (!("page" in patch)) n.delete("page");
     setLocation("/admin/products" + (n.toString() ? "?" + n : ""));
   };
-  const params: ListAdminProductsParams = { search: q || undefined, categoryId: cat, stock, sort, page, limit: 50 };
+  const params: ListAdminProductsParams = { search: q || undefined, categoryId: cat, stock, minQty, maxQty, sort, page, limit: 50 };
   const key = getListAdminProductsQueryKey(params);
   const { data, isLoading, isError, refetch, isFetching } = useListAdminProducts(params, { query: { queryKey: key, placeholderData: keepPreviousData } });
   const { data: cats = [] } = useListCategories();
@@ -90,6 +94,8 @@ export default function ProductsPage() {
   if (cat) exportQs.set("categoryId", String(cat));
   if (stock !== "all") exportQs.set("stock", stock);
   if (sort !== "newest") exportQs.set("sort", sort);
+  if (minQty !== undefined) exportQs.set("minQty", String(minQty));
+  if (maxQty !== undefined) exportQs.set("maxQty", String(maxQty));
   const pageIds = data?.items.map((p) => p.id) ?? [];
   const allOn = pageIds.length > 0 && pageIds.every((id) => sel.has(id));
   const toggle = (id: number) => setSel((o) => { const n = new Set(o); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -99,7 +105,7 @@ export default function ProductsPage() {
     <div>
       <PageHead title="Товари" sub="Ціни розраховуються автоматично з націнкою. Клацніть на ціну, щоб задати вручну."
         actions={<a href={`${exportBase}?${exportQs}`} download data-testid="link-export-products" className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-semibold hover:bg-muted"><Download className="h-4 w-4" />Експорт в Excel</a>} />
-      <MoneySummary params={{ search: q || undefined, categoryId: cat, stock }} />
+      <MoneySummary params={{ search: q || undefined, categoryId: cat, stock, minQty, maxQty }} />
       <Panel>
         <div className="flex flex-wrap items-center gap-2 border-b border-border p-3">
           <div className="flex rounded-lg bg-muted p-0.5">{STOCKS.map((s) => <button key={s.v} type="button" onClick={() => go({ stock: s.v === "all" ? undefined : s.v })} data-testid={`tab-stock-${s.v}`} className={cn("rounded-md px-3 py-1.5 text-xs font-semibold", stock === s.v ? "bg-card shadow-sm" : "text-muted-foreground")}>{s.l}</button>)}</div>
@@ -110,6 +116,7 @@ export default function ProductsPage() {
           <select value={sort} onChange={(e) => go({ sort: e.target.value === "newest" ? undefined : e.target.value })} data-testid="select-sort" className="h-9 max-w-[240px] rounded-lg border border-border bg-background px-2 text-sm">
             {SORTS.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
           </select>
+          {qtyLabel && <button type="button" onClick={() => go({ minQty: undefined, maxQty: undefined })} data-testid="chip-qty" className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-secondary px-3 text-xs font-semibold text-secondary-foreground">Залишок: {qtyLabel}<X className="h-3.5 w-3.5" /></button>}
           <form onSubmit={(e) => { e.preventDefault(); go({ q: qIn.trim() || undefined }); }} className="relative ml-auto w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input value={qIn} onChange={(e) => setQIn(e.target.value)} placeholder="Назва або код" data-testid="input-products-search" className="h-9 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm outline-none focus:border-primary" />
@@ -134,7 +141,7 @@ export default function ProductsPage() {
         {isError ? <div className="p-10 text-center text-sm">Помилка завантаження. <button className="font-semibold text-primary" onClick={() => refetch()} data-testid="button-retry-products">Повторити</button></div>
           : isLoading ? <div className="space-y-2 p-4">{Array.from({ length: 10 }).map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
           : !data || data.items.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 p-14 text-center"><PackageOpen className="h-10 w-10 text-muted-foreground" /><div className="font-semibold">{q || cat || stock !== "all" ? "Нічого не знайдено" : "Товарів ще немає"}</div><p className="text-sm text-muted-foreground">{q || cat || stock !== "all" ? "Змініть фільтри." : "Запустіть синхронізацію, щоб імпортувати товари зі складу."}</p>{!(q || cat || stock !== "all") && <Link href="/admin/sync" className="mt-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground" data-testid="link-products-sync">До синхронізації</Link>}</div>
+            <div className="flex flex-col items-center gap-2 p-14 text-center"><PackageOpen className="h-10 w-10 text-muted-foreground" /><div className="font-semibold">{q || cat || stock !== "all" || qtyLabel ? "Нічого не знайдено" : "Товарів ще немає"}</div><p className="text-sm text-muted-foreground">{q || cat || stock !== "all" ? "Змініть фільтри." : "Запустіть синхронізацію, щоб імпортувати товари зі складу."}</p>{!(q || cat || stock !== "all") && <Link href="/admin/sync" className="mt-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground" data-testid="link-products-sync">До синхронізації</Link>}</div>
           ) : (
             <div className={cn("overflow-x-auto transition-opacity", isFetching && "opacity-60")}>
               <table className="w-full min-w-[1180px] text-sm">

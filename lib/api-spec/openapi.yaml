@@ -827,6 +827,7 @@ components:
         price: { type: number }
         supplierPrice: { type: ["number", "null"] }
         quantity: { type: integer }
+        deliveryDays: { type: ["integer", "null"], description: "Set for on-order items (longer delivery)" }
         lineTotal: { type: number }
 
     Order:

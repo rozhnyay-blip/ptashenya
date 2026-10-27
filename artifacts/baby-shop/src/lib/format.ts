@@ -15,6 +15,9 @@ export function uahShort(n: number | null | undefined): string {
   if (a >= 1e6) return `${fmt(n / 1e6)} млн ₴`;
   return uah(Math.round(n));
 }
+/** "Під замовлення" items come from the supplier's second warehouse; the store promises 7–10 days for them. */
+export const isOnOrder = (days: number | null | undefined) => days != null && days > 3;
+export const ON_ORDER_TERM = "7–10 днів";
 export function num(n: number | null | undefined): string {
   if (n === null || n === undefined) return "—";
   return n.toLocaleString("uk-UA").replace(/\u00a0|\u202f/g, " ");

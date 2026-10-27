@@ -1,6 +1,6 @@
 import type { OrderDetail } from "@workspace/api-client-react";
 import { ProductImage } from "./product-image";
-import { DELIVERY_LABEL, PAYMENT_LABEL, STATUS_LABEL, dateTime, uah } from "@/lib/format";
+import { DELIVERY_LABEL, PAYMENT_LABEL, STATUS_LABEL, dateTime, uah, ON_ORDER_TERM, isOnOrder } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const STEPS = ["new", "confirmed", "shipped", "delivered"];
@@ -36,7 +36,7 @@ export function OrderSummary({ order }: { order: OrderDetail }) {
         {order.items.map((i) => (
           <li key={i.id} className="flex items-center gap-3 py-3">
             <ProductImage src={i.imageUrl} alt={i.name} className="h-14 w-14 shrink-0 rounded-xl" />
-            <div className="min-w-0 flex-1"><div className="line-clamp-2 text-sm font-medium">{i.name}</div><div className="text-xs text-muted-foreground tabular">{i.quantity} × {uah(i.price)}</div></div>
+            <div className="min-w-0 flex-1"><div className="line-clamp-2 text-sm font-medium">{i.name}</div><div className="text-xs text-muted-foreground tabular">{i.quantity} × {uah(i.price)}</div>{isOnOrder(i.deliveryDays) && <div className="text-xs font-semibold text-[hsl(30_70%_32%)]">Під замовлення · доставка {ON_ORDER_TERM}</div>}</div>
             <div className="font-bold tabular">{uah(i.lineTotal)}</div>
           </li>
         ))}

@@ -124,6 +124,7 @@ router.post("/orders", async (req, res) => {
           price: l.price,
           supplierPrice: l.product.supplierPrice,
           quantity: l.quantity,
+          deliveryDays: l.product.deliveryDays,
         })),
       )
       .returning();

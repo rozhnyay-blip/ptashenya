@@ -4,10 +4,11 @@ import { ArrowRight } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { CartLine } from "@/components/store/cart-drawer";
 import { StateBlock } from "@/components/store/store-layout";
-import { plural, uah } from "@/lib/format";
+import { ON_ORDER_TERM, isOnOrder, plural, uah } from "@/lib/format";
 
 export default function CartPage() {
   const { items, total, count, clear } = useCart();
+  const slow = items.some((i) => isOnOrder(i.deliveryDays));
   if (items.length === 0) return <StateBlock title="Кошик порожній" text="Тут з'являться товари, які ви оберете. Почнімо з каталогу?" action={<Link href="/catalog" className="rounded-full bg-primary px-7 py-3.5 font-bold text-primary-foreground" data-testid="link-empty-catalog">До каталогу</Link>} />;
   return (
     <div className="mx-auto max-w-5xl px-4 pt-8">
@@ -21,6 +22,7 @@ export default function CartPage() {
           <div className="space-y-4 rounded-[1.6rem] bg-foreground p-6 text-background">
             <div className="flex justify-between text-sm text-background/70"><span>{count} {plural(count, "товар", "товари", "товарів")}</span><span className="tabular">{uah(total)}</span></div>
             <div className="flex justify-between text-sm text-background/70"><span>Доставка</span><span>за тарифами перевізника</span></div>
+            {slow && <p className="rounded-xl bg-background/10 p-3 text-xs text-background/80" data-testid="text-cart-slow">У кошику є товари під замовлення — доставка замовлення {ON_ORDER_TERM}.</p>}
             <div className="flex items-baseline justify-between border-t border-background/15 pt-4"><span>Разом</span><span className="font-display text-3xl font-bold tabular" data-testid="text-cart-total">{uah(total)}</span></div>
             <Link href="/checkout" className="flex h-14 items-center justify-center gap-2 rounded-full bg-primary font-bold text-primary-foreground" data-testid="link-checkout">Оформити <ArrowRight className="h-5 w-5" /></Link>
           </div>

@@ -41,6 +41,8 @@ export const orderItemsTable = pgTable(
     price: numeric("price", { precision: 12, scale: 2, mode: "number" }).notNull(),
     supplierPrice: numeric("supplier_price", { precision: 12, scale: 2, mode: "number" }),
     quantity: integer("quantity").notNull(),
+    /** Supplier delivery term at order time for "під замовлення" items; null = ships from stock. */
+    deliveryDays: integer("delivery_days"),
   },
   (t) => [index("order_items_order_idx").on(t.orderId)],
 );

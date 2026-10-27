@@ -276,6 +276,7 @@ export const CreateOrderResponse = zod.object({
   "price": zod.number(),
   "supplierPrice": zod.number().nullish(),
   "quantity": zod.number().int(),
+  "deliveryDays": zod.number().int().nullish().describe('Set for on-order items (longer delivery)'),
   "lineTotal": zod.number()
 }))
 }))
@@ -355,6 +356,7 @@ export const LookupOrderResponse = zod.object({
   "price": zod.number(),
   "supplierPrice": zod.number().nullish(),
   "quantity": zod.number().int(),
+  "deliveryDays": zod.number().int().nullish().describe('Set for on-order items (longer delivery)'),
   "lineTotal": zod.number()
 }))
 }))
@@ -550,6 +552,7 @@ export const GetAdminOrderResponse = zod.object({
   "price": zod.number(),
   "supplierPrice": zod.number().nullish(),
   "quantity": zod.number().int(),
+  "deliveryDays": zod.number().int().nullish().describe('Set for on-order items (longer delivery)'),
   "lineTotal": zod.number()
 }))
 }))
@@ -595,6 +598,7 @@ export const UpdateAdminOrderResponse = zod.object({
   "price": zod.number(),
   "supplierPrice": zod.number().nullish(),
   "quantity": zod.number().int(),
+  "deliveryDays": zod.number().int().nullish().describe('Set for on-order items (longer delivery)'),
   "lineTotal": zod.number()
 }))
 }))

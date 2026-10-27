@@ -1,11 +1,11 @@
 import { useRef, useState } from "react";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { Check, Plus } from "lucide-react";
+import { Check, Clock, Plus } from "lucide-react";
 import type { Product } from "@workspace/api-client-react";
 import { ProductImage } from "./product-image";
 import { flyToCart, useCart } from "@/lib/cart";
-import { uah } from "@/lib/format";
+import { ON_ORDER_TERM, isOnOrder, uah } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export function ProductCard({ product, index = 0 }: { product: Product; index?: number }) {
@@ -17,7 +17,7 @@ export function ProductCard({ product, index = 0 }: { product: Product; index?: 
     e.preventDefault(); e.stopPropagation();
     if (!product.inStock) return;
     flyToCart(btn.current, product.imageUrl);
-    add({ productId: product.id, name: product.name, price: product.price, imageUrl: product.imageUrl, sku: product.sku });
+    add({ productId: product.id, name: product.name, price: product.price, imageUrl: product.imageUrl, sku: product.sku, deliveryDays: product.deliveryDays });
     setAdded(true); setTimeout(() => setAdded(false), 1400);
   };
   return (
@@ -30,6 +30,9 @@ export function ProductCard({ product, index = 0 }: { product: Product; index?: 
             {product.isNew && <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-secondary-foreground">новинка</span>}
             {discount > 0 && <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">−{discount}%</span>}
           </div>
+          {product.inStock && isOnOrder(product.deliveryDays) && (
+            <span className="absolute bottom-2 left-2.5 inline-flex items-center gap-1 rounded-full bg-[hsl(42_95%_88%)] px-2 py-0.5 text-[10px] font-bold text-[hsl(30_70%_26%)] shadow-sm" data-testid={`badge-on-order-${product.id}`}><Clock className="h-3 w-3" />Доставка {ON_ORDER_TERM}</span>
+          )}
           {!product.inStock && <div className="absolute inset-0 flex items-end justify-center bg-card/50 pb-3"><span className="rounded-full bg-foreground/85 px-3 py-1 text-[11px] font-semibold text-background">Немає в наявності</span></div>}
         </div>
         <div className="flex flex-1 flex-col gap-2 p-3 sm:p-4">

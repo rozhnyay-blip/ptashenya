@@ -18,5 +18,10 @@ export interface OrderItem {
   /** @nullable */
   supplierPrice?: number | null;
   quantity: number;
+  /**
+     * Set for on-order items (longer delivery)
+     * @nullable
+     */
+  deliveryDays?: number | null;
   lineTotal: number;
 }

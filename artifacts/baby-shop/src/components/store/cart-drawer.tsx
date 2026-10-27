@@ -1,9 +1,9 @@
 import { Link } from "wouter";
 import { AnimatePresence, motion } from "framer-motion";
-import { Minus, Plus, ShoppingBag, Trash2, X } from "lucide-react";
+import { Clock, Minus, Plus, ShoppingBag, Trash2, X } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useCart, type CartItem } from "@/lib/cart";
-import { uah, plural } from "@/lib/format";
+import { ON_ORDER_TERM, isOnOrder, uah, plural } from "@/lib/format";
 import { ProductImage } from "./product-image";
 
 export function QtyStepper({ value, onChange, size = "sm" }: { value: number; onChange: (n: number) => void; size?: "sm" | "lg" }) {
@@ -25,6 +25,7 @@ export function CartLine({ item, onNavigate }: { item: CartItem; onNavigate?: ()
       <div className="flex min-w-0 flex-1 flex-col">
         <Link href={`/product/${item.productId}`} onClick={onNavigate} className="line-clamp-2 text-sm font-semibold leading-snug hover:text-primary">{item.name}</Link>
         <span className="text-[11px] text-muted-foreground">Код {item.sku}</span>
+        {isOnOrder(item.deliveryDays) && <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-semibold text-[hsl(30_70%_32%)]" data-testid={`text-cart-on-order-${item.productId}`}><Clock className="h-3 w-3" />Під замовлення · доставка {ON_ORDER_TERM}</span>}
         <div className="mt-auto flex items-center justify-between gap-2 pt-2">
           <QtyStepper value={item.quantity} onChange={(n) => setQty(item.productId, n)} />
           <div className="text-right">

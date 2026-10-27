@@ -7,7 +7,7 @@ import { PageHead, Panel, StatusPill } from "@/components/admin/admin-layout";
 import { ProductImage } from "@/components/store/product-image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { DELIVERY_LABEL, PAYMENT_LABEL, STATUS_LABEL, apiError, dateTime, uah } from "@/lib/format";
+import { DELIVERY_LABEL, PAYMENT_LABEL, STATUS_LABEL, apiError, dateTime, uah, ON_ORDER_TERM, isOnOrder } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const FLOW: OrderStatus[] = ["new", "confirmed", "shipped", "delivered", "cancelled"];
@@ -47,13 +47,13 @@ export default function OrderDetailPage() {
       <PageHead title={`Замовлення № ${o.number}`} sub={<span className="flex items-center gap-2">{dateTime(o.createdAt)} <StatusPill status={o.status} /></span>} />
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <div className="space-y-4">
-          <Panel title={`Товари · ${o.itemsCount}`}>
+          <Panel title={`Товари · ${o.itemsCount}`} action={o.items.some((i) => isOnOrder(i.deliveryDays)) ? <span className="rounded-full bg-[hsl(40_90%_90%)] px-2.5 py-1 text-[11px] font-semibold text-[hsl(30_70%_28%)]" data-testid="badge-order-slow">Є товари під замовлення · {ON_ORDER_TERM}</span> : undefined}>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[560px] text-sm">
                 <thead><tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground"><th className="px-4 py-2">Товар</th><th className="px-2 text-right">Ціна</th><th className="px-2 text-right">Закупка</th><th className="px-2 text-right">К-сть</th><th className="px-4 text-right">Сума</th></tr></thead>
                 <tbody>{o.items.map((i) => (
                   <tr key={i.id} className="border-b border-border/70">
-                    <td className="px-4 py-2.5"><div className="flex items-center gap-3"><ProductImage src={i.imageUrl} alt="" className="h-11 w-11 shrink-0 rounded-lg" imgClassName="p-0.5" /><div className="min-w-0"><div className="line-clamp-2 text-xs font-medium">{i.productId ? <Link href={`/admin/products?q=${encodeURIComponent(i.sku)}`} className="hover:text-primary">{i.name}</Link> : i.name}</div><div className="font-mono text-[11px] text-muted-foreground">{i.sku}</div></div></div></td>
+                    <td className="px-4 py-2.5"><div className="flex items-center gap-3"><ProductImage src={i.imageUrl} alt="" className="h-11 w-11 shrink-0 rounded-lg" imgClassName="p-0.5" /><div className="min-w-0"><div className="line-clamp-2 text-xs font-medium">{i.productId ? <Link href={`/admin/products?q=${encodeURIComponent(i.sku)}`} className="hover:text-primary">{i.name}</Link> : i.name}</div><div className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">{i.sku}{isOnOrder(i.deliveryDays) && <span className="rounded bg-[hsl(40_90%_90%)] px-1.5 py-0.5 font-sans text-[10px] font-semibold text-[hsl(30_70%_28%)]" title="Постачальник везе з іншого складу">під замовлення · {ON_ORDER_TERM}</span>}</div></div></div></td>
                     <td className="px-2 text-right font-mono tabular">{uah(i.price)}</td>
                     <td className="px-2 text-right font-mono text-xs tabular text-muted-foreground">{i.supplierPrice != null ? uah(i.supplierPrice) : "—"}</td>
                     <td className="px-2 text-right font-mono tabular">{i.quantity}</td>

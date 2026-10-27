@@ -90,6 +90,7 @@ export function toOrderDetail(o: OrderRow, items: OrderItemRow[], includeProfit:
       price: i.price,
       supplierPrice: includeProfit ? i.supplierPrice : null,
       quantity: i.quantity,
+      deliveryDays: i.deliveryDays,
       lineTotal: Math.round(i.price * i.quantity * 100) / 100,
     })),
   };

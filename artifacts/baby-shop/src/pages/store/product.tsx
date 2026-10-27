@@ -1,14 +1,14 @@
 import { useRef, useState } from "react";
 import { Link, useLocation, useParams } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, ChevronRight, PackageX, ShoppingBag, Truck, Zap } from "lucide-react";
+import { Check, ChevronRight, Clock, PackageX, ShoppingBag, Truck, Zap } from "lucide-react";
 import { useGetProduct, getGetProductQueryKey, useGetRelatedProducts, getGetRelatedProductsQueryKey } from "@workspace/api-client-react";
 import { ProductImage } from "@/components/store/product-image";
 import { ProductCard } from "@/components/store/product-card";
 import { QtyStepper } from "@/components/store/cart-drawer";
 import { StateBlock } from "@/components/store/store-layout";
 import { flyToCart, useCart } from "@/lib/cart";
-import { uah } from "@/lib/format";
+import { uah, ON_ORDER_TERM, isOnOrder } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useSeo } from "@/lib/seo";
 
@@ -59,7 +59,8 @@ export default function ProductPage() {
 
   const images = p.images.length ? p.images : p.imageUrl ? [p.imageUrl] : [];
   const discount = p.oldPrice && p.oldPrice > p.price ? Math.round((1 - p.price / p.oldPrice) * 100) : 0;
-  const item = { productId: p.id, name: p.name, price: p.price, imageUrl: p.imageUrl, sku: p.sku };
+  const item = { productId: p.id, name: p.name, price: p.price, imageUrl: p.imageUrl, sku: p.sku, deliveryDays: p.deliveryDays };
+  const onOrder = isOnOrder(p.deliveryDays);
   const onAdd = () => { flyToCart(btn.current, p.imageUrl); add(item, qty); setAdded(true); setTimeout(() => setAdded(false), 1600); };
   const onBuy = () => { add(item, qty); setLocation("/checkout"); };
 
@@ -98,7 +99,9 @@ export default function ProductPage() {
             {discount > 0 && <span className="mb-1 text-lg text-muted-foreground line-through tabular">{uah(p.oldPrice)}</span>}
           </div>
           <div className="mt-3">
-            {p.inStock
+            {p.inStock && onOrder
+              ? <span className="inline-flex items-center gap-1.5 rounded-full bg-[hsl(42_95%_88%)] px-3 py-1 text-xs font-bold text-[hsl(30_70%_26%)]" data-testid="status-stock"><Clock className="h-3.5 w-3.5" />Під замовлення · доставка {ON_ORDER_TERM}</span>
+              : p.inStock
               ? <span className="inline-flex items-center gap-1.5 rounded-full bg-[hsl(160_45%_90%)] px-3 py-1 text-xs font-bold text-[hsl(165_55%_24%)]" data-testid="status-stock"><span className="h-1.5 w-1.5 rounded-full bg-current" />{p.stockQty != null && p.stockQtyMax === p.stockQty && p.stockQty <= 5 ? `Лишилось ${p.stockQty} шт.` : "Є в наявності"}</span>
               : <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-bold text-muted-foreground" data-testid="status-stock"><PackageX className="h-3.5 w-3.5" />Немає в наявності</span>}
           </div>
@@ -114,7 +117,7 @@ export default function ProductPage() {
             </div>
           )}
           <div className="mt-6 grid gap-2 rounded-[1.4rem] bg-muted/60 p-4 text-sm">
-            <div className="flex gap-3"><Truck className="h-5 w-5 shrink-0 text-primary" /><span>Відправка Новою Поштою у будь-яке відділення чи поштомат</span></div>
+            <div className="flex gap-3"><Truck className="h-5 w-5 shrink-0 text-primary" /><span>{onOrder ? <>Доставка <b>{ON_ORDER_TERM}</b>: товар везуть з іншого складу, потім відправляємо Новою Поштою у будь-яке відділення чи поштомат</> : "Відправка Новою Поштою у будь-яке відділення чи поштомат"}</span></div>
             <div className="flex gap-3"><Check className="h-5 w-5 shrink-0 text-primary" /><span>Оплата при отриманні або на карту</span></div>
           </div>
           {p.description && (

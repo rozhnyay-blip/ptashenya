@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
-export interface CartItem { productId: number; name: string; price: number; imageUrl: string | null; sku: string; quantity: number; }
+export interface CartItem { productId: number; name: string; price: number; imageUrl: string | null; sku: string; quantity: number; deliveryDays?: number | null; }
 interface CartCtx {
   items: CartItem[]; count: number; total: number; bump: number;
   open: boolean; setOpen: (v: boolean) => void;

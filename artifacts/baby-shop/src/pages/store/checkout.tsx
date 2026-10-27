@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, Loader2, Lock, Truck, Wallet, CreditCard } from "lucide-react";
+import { AlertCircle, Clock, Loader2, Lock, Truck, Wallet, CreditCard } from "lucide-react";
 import { useCreateOrder, getGetStorefrontHighlightsQueryKey, type NpBranch, type NpCity, type PaymentMethod } from "@workspace/api-client-react";
 import { useCart } from "@/lib/cart";
 import { ProductImage } from "@/components/store/product-image";
 import { StateBlock } from "@/components/store/store-layout";
 import { NpBranchPicker, NpCityPicker } from "@/components/store/np-picker";
-import { apiError, formatPhoneMask, phoneDigits, uah } from "@/lib/format";
+import { ON_ORDER_TERM, apiError, formatPhoneMask, isOnOrder, phoneDigits, uah } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const PAYMENT: { v: PaymentMethod; l: string; d: string; icon: typeof Wallet }[] = [
@@ -19,6 +19,7 @@ const inputCls = "h-12 w-full rounded-2xl border border-border bg-card px-4 text
 
 export default function CheckoutPage() {
   const { items, total, clear } = useCart();
+  const slow = items.some((i) => isOnOrder(i.deliveryDays));
   const [, setLocation] = useLocation();
   const qc = useQueryClient();
   const create = useCreateOrder();
@@ -74,8 +75,9 @@ export default function CheckoutPage() {
             <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold"><span className="grid h-7 w-7 place-items-center rounded-full bg-primary text-xs text-primary-foreground">2</span>Доставка</h2>
             <div className="mb-4 flex items-center gap-3 rounded-2xl bg-primary/5 p-3" data-testid="text-delivery-np">
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#DA291C] text-white"><Truck className="h-4 w-4" /></span>
-              <div><div className="text-sm font-bold">Нова Пошта</div><div className="text-xs text-muted-foreground">У відділення або поштомат · 1–2 дні</div></div>
+              <div><div className="text-sm font-bold">Нова Пошта</div><div className="text-xs text-muted-foreground">У відділення або поштомат · {slow ? ON_ORDER_TERM : "1–2 дні"}</div></div>
             </div>
+            {slow && <p className="-mt-2 mb-4 flex gap-2 rounded-2xl bg-[hsl(42_95%_92%)] p-3 text-xs text-[hsl(30_70%_24%)]" data-testid="text-checkout-slow"><Clock className="mt-px h-4 w-4 shrink-0" /><span>У замовленні є товари під замовлення — їх везуть з іншого складу, тому доставка займе {ON_ORDER_TERM}.</span></p>}
             <div className="space-y-4">
               <div>
                 <div className="mb-1.5 text-xs font-semibold text-muted-foreground">Місто</div>
@@ -111,7 +113,7 @@ export default function CheckoutPage() {
               {items.map((i) => (
                 <li key={i.productId} className="flex gap-3">
                   <ProductImage src={i.imageUrl} alt={i.name} className="h-14 w-14 shrink-0 rounded-xl" />
-                  <div className="min-w-0 flex-1"><div className="line-clamp-2 text-xs font-medium">{i.name}</div><div className="text-[11px] text-background/60 tabular">{i.quantity} × {uah(i.price)}</div></div>
+                  <div className="min-w-0 flex-1"><div className="line-clamp-2 text-xs font-medium">{i.name}</div><div className="text-[11px] text-background/60 tabular">{i.quantity} × {uah(i.price)}</div>{isOnOrder(i.deliveryDays) && <div className="text-[11px] font-semibold text-secondary">доставка {ON_ORDER_TERM}</div>}</div>
                   <div className="text-sm font-bold tabular">{uah(i.price * i.quantity)}</div>
                 </li>
               ))}

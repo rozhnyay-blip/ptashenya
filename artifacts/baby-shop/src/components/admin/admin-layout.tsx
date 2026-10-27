@@ -69,7 +69,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       <aside className="fixed inset-y-0 left-0 hidden w-60 lg:block">{side}</aside>
       {open && <div className="fixed inset-0 z-50 lg:hidden"><div className="absolute inset-0 bg-foreground/40" onClick={() => setOpen(false)} /><div className="absolute inset-y-0 left-0 w-64">{side}</div></div>}
       <CommandPalette open={cmd} onOpenChange={setCmd} />
-      <div className="lg:pl-60">
+      <div className="min-w-0 overflow-x-clip lg:pl-60">
         <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-border bg-background/90 px-4 py-3 backdrop-blur lg:hidden">
           <button type="button" onClick={() => setOpen(true)} data-testid="button-admin-menu" className="grid h-9 w-9 place-items-center rounded-lg bg-muted">{open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}</button>
           <span className="flex-1 font-display text-sm font-bold">{settings?.storeName ?? "Кабінет"}</span>

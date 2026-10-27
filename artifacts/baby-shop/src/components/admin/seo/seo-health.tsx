@@ -58,17 +58,17 @@ export function SeoHero({ audit, coverage, withSeo, inStock, lastRunAt, lastRunC
           <div className="hidden lg:block"><HeroCoverage coverage={coverage} withSeo={withSeo} inStock={inStock} lastRunAt={lastRunAt} lastRunCount={lastRunCount} /></div>
           {audit ? (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <Stat icon={Link2} label="Посилань у карті сайту" value={audit.totalUrls} testId="stat-total-urls" />
-              <Stat icon={Package} label="Сторінок товарів" value={audit.productPages} testId="stat-product-pages" />
-              <Stat icon={FolderTree} label="Сторінок категорій" value={audit.categoryPages} testId="stat-category-pages" />
+              <Stat icon={Link2} label="Усього посилань" value={audit.totalUrls} testId="stat-total-urls" />
+              <Stat icon={Package} label="Товарів" value={audit.productPages} testId="stat-product-pages" />
+              <Stat icon={FolderTree} label="Категорій" value={audit.categoryPages} testId="stat-category-pages" />
               <Stat icon={Boxes} label="Під замовлення" value={audit.onOrderProducts} testId="stat-on-order" />
             </div>
           ) : <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[72px] rounded-xl bg-sidebar-accent" />)}</div>}
         </div>
-        <div className="flex flex-col items-stretch gap-2 lg:w-64">
+        <div className="flex flex-col items-stretch gap-2 lg:w-60">
           <button type="button" onClick={onRun} disabled={running} data-testid="button-run-seo" className="group relative inline-flex h-14 items-center justify-center gap-2.5 overflow-hidden rounded-2xl bg-primary px-6 text-base font-bold text-primary-foreground shadow-[0_14px_34px_-12px_hsl(14_88%_55%/0.9)] transition hover:-translate-y-0.5 active:translate-y-0 disabled:translate-y-0 disabled:opacity-90">
             <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-            {running ? <><Loader2 className="h-5 w-5 animate-spin" />Оновлюю… <span className="font-mono tabular">{elapsed.toFixed(1)} с</span></> : <><Zap className="h-5 w-5 transition group-hover:rotate-12" />Оновити SEO всіх товарів</>}
+            {running ? <><Loader2 className="h-5 w-5 animate-spin" />Оновлюю… <span className="font-mono tabular">{elapsed.toFixed(1)} с</span></> : <><Zap className="h-5 w-5 transition group-hover:rotate-12" />Оновити SEO</>}
           </button>
           {result ? <div className="flex items-center justify-center gap-1.5 text-sm text-[hsl(160_55%_75%)]" data-testid="text-seo-result"><CheckCircle2 className="h-4 w-4" />{num(result.updated)} товарів за {(result.durationMs / 1000).toFixed(1)} с</div>
             : !running && <div className="text-center text-[11px] text-sidebar-foreground/50">5–10 секунд для всього каталогу</div>}

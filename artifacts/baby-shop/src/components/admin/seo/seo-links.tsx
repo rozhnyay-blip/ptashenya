@@ -37,7 +37,7 @@ function ActionBtn({ href, onClick, title, children, testId }: { href?: string; 
     : <button type="button" onClick={onClick} title={title} aria-label={title} className={cls} data-testid={testId}>{children}</button>;
 }
 
-function LinkRow({ l, base }: { l: SeoLink; base: string }) {
+export function LinkRow({ l, base }: { l: SeoLink; base: string }) {
   const url = base + l.path;
   const [copied, setCopied] = useState(false);
   const key = `${l.kind}-${l.id ?? l.path}`;
@@ -58,7 +58,7 @@ function LinkRow({ l, base }: { l: SeoLink; base: string }) {
         {l.description && <p className="mt-0.5 line-clamp-2 text-[12.5px] leading-relaxed text-[hsl(220_8%_35%)]">{l.description}</p>}
         <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1"><Meter n={l.titleLength} max={70} label="title" /><Meter n={l.descriptionLength} max={160} label="desc" /></div>
       </div>
-      <div className="flex flex-wrap items-start gap-1.5 md:w-[120px] md:justify-end">
+      <div className="flex flex-wrap items-start gap-1.5 md:flex-nowrap md:justify-end">
         <ActionBtn href={url} title="Відкрити сторінку" testId={`action-open-${key}`}><ExternalLink className="h-3.5 w-3.5" /></ActionBtn>
         <ActionBtn onClick={() => copyText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1400); })} title="Копіювати посилання" testId={`action-copy-${key}`}>{copied ? <Check className="h-3.5 w-3.5 text-[hsl(152_55%_35%)]" /> : <Copy className="h-3.5 w-3.5" />}</ActionBtn>
         <ActionBtn href={tools.googleIndex(url)} title="Чи є сторінка в Google" testId={`action-google-${key}`}><Globe2 className="h-3.5 w-3.5" /></ActionBtn>

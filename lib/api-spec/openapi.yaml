@@ -46,6 +46,20 @@ paths:
               schema:
                 $ref: "#/components/schemas/Me"
 
+  /search/aliases:
+    get:
+      operationId: listSearchAliases
+      tags: [catalog]
+      summary: Russian and dialect words the search understands, grouped by the Ukrainian catalog word
+      responses:
+        "200":
+          description: Synonym groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SearchAliasGroup" }
+
   /categories:
     get:
       operationId: listCategories
@@ -967,6 +981,24 @@ components:
         shipped: { type: integer }
         delivered: { type: integer }
         cancelled: { type: integer }
+
+    SearchAliasGroup:
+      type: object
+      required: [uk, aliases, stems]
+      properties:
+        uk: { type: string }
+        stems:
+          type: array
+          description: Lower-case word beginnings (no apostrophes) that belong to this group
+          items: { type: string }
+        aliases:
+          type: array
+          items:
+            type: object
+            required: [word, kind]
+            properties:
+              word: { type: string }
+              kind: { type: string, enum: [ru, dialect] }
 
     OrderUpdate:
       type: object

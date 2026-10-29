@@ -6,6 +6,7 @@ import { ProductCard, ProductCardSkeleton } from "@/components/store/product-car
 import { StateBlock } from "@/components/store/store-layout";
 import { num, relTime } from "@/lib/format";
 import { siteJsonLd, useSeo } from "@/lib/seo";
+import { SpeakYourWay } from "@/components/store/search-aliases";
 
 const TILE_COLORS = ["bg-secondary", "bg-accent", "bg-[hsl(160_45%_88%)]", "bg-[hsl(14_90%_90%)]", "bg-[hsl(200_60%_90%)]", "bg-muted"];
 
@@ -127,6 +128,8 @@ export default function HomePage() {
           ))}
         </div>
       </section>
+
+      <SpeakYourWay />
 
       <Shelf kicker="ми радимо" title="Обране для вас" items={data?.featured} href="/catalog" loading={isLoading} />
 

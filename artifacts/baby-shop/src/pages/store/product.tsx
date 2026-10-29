@@ -10,6 +10,7 @@ import { StateBlock } from "@/components/store/store-layout";
 import { flyToCart, useCart } from "@/lib/cart";
 import { uah, ON_ORDER_TERM, isOnOrder } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { AlsoSearched, aliasesFor, useAliasGroups } from "@/components/store/search-aliases";
 import { useSeo } from "@/lib/seo";
 
 export default function ProductPage() {
@@ -23,9 +24,11 @@ export default function ProductPage() {
   const [active, setActive] = useState(0);
   const [added, setAdded] = useState(false);
   const btn = useRef<HTMLButtonElement>(null);
+  const aliasGroups = useAliasGroups();
+  const nameAliases = aliasesFor(p?.name, aliasGroups, 4);
   useSeo({
     title: p ? (p.seoTitle ?? `${p.name} — купити за ${p.price} грн | Пташеня`) : null,
-    description: p?.seoDescription ?? null,
+    description: p?.seoDescription ? p.seoDescription + (nameAliases.length ? ` Також шукають: ${nameAliases.join(", ")}.` : "") : null,
     image: p?.imageUrl ?? null,
     path: `/product/${id}`,
     jsonLd: p
@@ -94,6 +97,7 @@ export default function ProductPage() {
           {p.categoryName && <Link href={`/catalog/${p.categoryId}`} className="text-xs font-bold uppercase tracking-widest text-primary">{p.categoryName}</Link>}
           <h1 className="mt-2 font-display text-2xl font-bold leading-tight sm:text-3xl" data-testid="text-product-name">{p.name}</h1>
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground"><span>Код: {p.sku}</span>{p.article && <span>Артикул: {p.article}</span>}</div>
+          <AlsoSearched words={nameAliases} className="mt-1 text-xs text-muted-foreground" />
           <div className="mt-6 flex items-end gap-3">
             <span className={cn("font-display text-4xl font-extrabold tabular", discount > 0 && "text-primary")} data-testid="text-product-price">{uah(p.price)}</span>
             {discount > 0 && <span className="mb-1 text-lg text-muted-foreground line-through tabular">{uah(p.oldPrice)}</span>}

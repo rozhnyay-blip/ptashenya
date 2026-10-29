@@ -9,6 +9,7 @@ import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/
 import { Switch } from "@/components/ui/switch";
 import { num, plural } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { AlsoSearched, aliasesFor, useAliasGroups } from "@/components/store/search-aliases";
 import { useSeo } from "@/lib/seo";
 
 const SORTS: { v: ListProductsSort; l: string }[] = [{ v: "popular", l: "Популярні" }, { v: "newest", l: "Новинки" }, { v: "price_asc", l: "Дешевші" }, { v: "price_desc", l: "Дорожчі" }, { v: "name", l: "За назвою" }];
@@ -81,10 +82,12 @@ export default function CatalogPage() {
   const { data, isLoading, isFetching, isError, refetch } = useListProducts(queryParams, { query: { queryKey: getListProductsQueryKey(queryParams), placeholderData: keepPreviousData } });
   const { data: cats = [] } = useListCategories();
   const cat = cats.find((c) => c.id === categoryId);
+  const aliasGroups = useAliasGroups();
+  const catAliases = aliasesFor(cat?.name, aliasGroups);
   useSeo({
     title: cat ? `${cat.name} — купити в інтернет-магазині Пташеня` : q ? `Пошук «${q}» — Пташеня` : "Каталог товарів для дітей — Пташеня",
     description: cat
-      ? `${cat.name}: ${cat.productCount} товарів у наявності за доступними цінами. Щоденне оновлення складу, доставка Новою Поштою по всій Україні.`
+      ? `${cat.name}: ${cat.productCount} товарів у наявності за доступними цінами.${catAliases.length ? ` Також шукають: ${catAliases.join(", ")}.` : ""} Доставка Новою Поштою по всій Україні.`
       : null,
     path: categoryId ? `/catalog/${categoryId}` : "/catalog",
   });
@@ -144,6 +147,7 @@ export default function CatalogPage() {
         <div>
           <h1 className="font-display text-3xl font-bold sm:text-4xl">{cat?.name ?? (q ? "Пошук" : "Каталог")}</h1>
           <p className="mt-1 text-sm text-muted-foreground tabular" data-testid="text-total">{data ? `${num(data.total)} ${plural(data.total, "товар", "товари", "товарів")}` : "Рахуємо товари..."}</p>
+          <AlsoSearched words={catAliases} className="mt-1 text-xs text-muted-foreground" />
         </div>
         <form onSubmit={(e) => { e.preventDefault(); update({ search: qInput.trim() || undefined }); }} className="hidden w-80 md:block">
           <input value={qInput} onChange={(e) => setQInput(e.target.value)} placeholder="Пошук у каталозі" data-testid="input-catalog-search" className="h-11 w-full rounded-full border border-border bg-card px-4 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary/15" />

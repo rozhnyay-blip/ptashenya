@@ -28,6 +28,20 @@ export const GetMeResponse = zod.object({
 
 
 /**
+ * @summary Russian and dialect words the search understands, grouped by the Ukrainian catalog word
+ */
+export const ListSearchAliasesResponseItem = zod.object({
+  "uk": zod.string(),
+  "stems": zod.array(zod.string()).describe('Lower-case word beginnings (no apostrophes) that belong to this group'),
+  "aliases": zod.array(zod.object({
+  "word": zod.string(),
+  "kind": zod.enum(['ru', 'dialect'])
+}))
+})
+export const ListSearchAliasesResponse = zod.array(ListSearchAliasesResponseItem)
+
+
+/**
  * @summary Category tree with product counts (only categories that have products)
  */
 export const ListCategoriesResponseItem = zod.object({

@@ -1,3 +1,4 @@
+import { SYNONYM_GROUPS, expandQuery, type WordMatch } from "../lib/search-synonyms";
 import { Router, type IRouter } from "express";
 import { db, productsTable, categoriesTable, ordersTable, type ProductRow } from "@workspace/db";
 import { and, asc, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
@@ -89,6 +90,28 @@ async function categoryWithChildren(categoryId: number): Promise<number[]> {
   return [categoryId, ...children.map((c) => c.id)];
 }
 
+const likeEscape = (v: string) => v.replace(/[\\%_]/g, (c) => "\\" + c);
+/** Product name lower-cased, ё → е, without apostrophes — same normalization as search words. */
+const normalizedName = sql`translate(lower(${productsTable.name}), ${"ё'’ʼ`ʹ"}, ${"е"})`;
+
+const regexEscape = (v: string) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** SQL for one search word: `match` = found anywhere it should be, `leading` = the name starts with it. */
+function wordSql(m: WordMatch) {
+  const typed = m.typed.map((t) => sql`${normalizedName} like ${`%${likeEscape(t)}%`}`);
+  const alts = [...m.typed.map(regexEscape), ...m.stems].join("|");
+  const stems = m.stems.length ? [sql`${normalizedName} ~ ${`\\m(${m.stems.join("|")})`}`] : [];
+  return {
+    match: or(...typed, ...stems)!,
+    leading: sql`${normalizedName} ~ ${`^[^[:alpha:]]*(${alts})`}`,
+  };
+}
+
+router.get("/search/aliases", (_req, res) => {
+  res.set("Cache-Control", "public, max-age=3600");
+  res.json(SYNONYM_GROUPS.map(({ uk, aliases, stems }) => ({ uk, aliases, stems })));
+});
+
 router.get("/products", async (req, res) => {
   const parsed = ListProductsQueryParams.safeParse(req.query);
   if (!parsed.success) {
@@ -102,20 +125,29 @@ router.get("/products", async (req, res) => {
   const settings = await getSettings();
   const price = retailPriceSql(settings);
 
-  const conds: SQL[] = [visibleSql];
-  if (q.search && q.search.trim()) {
-    const term = `%${q.search.trim()}%`;
-    conds.push(or(ilike(productsTable.name, term), ilike(productsTable.sku, term))!);
-  }
+  const base: SQL[] = [visibleSql];
   if (q.categoryId) {
-    conds.push(inArray(productsTable.categoryId, await categoryWithChildren(q.categoryId)));
+    base.push(inArray(productsTable.categoryId, await categoryWithChildren(q.categoryId)));
   }
-  if (q.minPrice !== undefined) conds.push(sql`${price} >= ${q.minPrice}`);
-  if (q.maxPrice !== undefined) conds.push(sql`${price} <= ${q.maxPrice}`);
-  if (onlyNew) conds.push(eq(productsTable.isNew, true));
-  const where = and(...conds);
+  if (q.minPrice !== undefined) base.push(sql`${price} >= ${q.minPrice}`);
+  if (q.maxPrice !== undefined) base.push(sql`${price} <= ${q.maxPrice}`);
+  if (onlyNew) base.push(eq(productsTable.isNew, true));
 
-  const order: SQL[] = (() => {
+  // Search: every word must match in Ukrainian, Russian or dialect form; SKU matches the whole query.
+  const search = q.search?.trim() ?? "";
+  const words = search ? expandQuery(search).map(wordSql) : [];
+  const skuMatch = search ? ilike(productsTable.sku, `%${likeEscape(search)}%`) : undefined;
+  const searchCond = (mode: "all" | "any") =>
+    words.length ? or(mode === "all" ? and(...words.map((w) => w.match))! : or(...words.map((w) => w.match))!, skuMatch)! : skuMatch!;
+
+  const popular: SQL[] = [
+    sql`(products.image_url is not null) desc`,
+    desc(productsTable.salesCount),
+    desc(productsTable.isFeatured),
+    desc(productsTable.isNew),
+    desc(productsTable.id),
+  ];
+  const order = (mode: "all" | "any"): SQL[] => {
     switch (q.sort) {
       case "newest":
         return [desc(productsTable.firstSeenAt), desc(productsTable.id)];
@@ -126,26 +158,27 @@ router.get("/products", async (req, res) => {
       case "name":
         return [asc(productsTable.name), asc(productsTable.id)];
       default:
+        if (!words.length) return popular;
+        // Most relevant first: more words matched, then names that start with the first word.
         return [
-          sql`(products.image_url is not null) desc`,
-          desc(productsTable.salesCount),
-          desc(productsTable.isFeatured),
-          desc(productsTable.isNew),
-          desc(productsTable.id),
+          ...(mode === "any" ? [sql`(${sql.join(words.map((w) => sql`(${w.match})::int`), sql` + `)}) desc`] : []),
+          mode === "all" ? sql`(${words[0]!.leading}) desc` : sql`(${or(...words.map((w) => w.leading))}) desc`,
+          ...popular,
         ];
     }
-  })();
+  };
 
-  const [rows, totalRows] = await Promise.all([
-    db
-      .select()
-      .from(productsTable)
-      .where(where)
-      .orderBy(...order)
-      .limit(limit)
-      .offset((page - 1) * limit),
-    db.select({ total: sql<number>`count(*)::int` }).from(productsTable).where(where),
-  ]);
+  const run = async (mode: "all" | "any") => {
+    const where = and(...base, ...(search ? [searchCond(mode)] : []));
+    const [rows, totalRows] = await Promise.all([
+      db.select().from(productsTable).where(where).orderBy(...order(mode)).limit(limit).offset((page - 1) * limit),
+      db.select({ total: sql<number>`count(*)::int` }).from(productsTable).where(where),
+    ]);
+    return { rows, totalRows };
+  };
+  let { rows, totalRows } = await run("all");
+  // Nothing has every word ("железная дорога")? Show what matches some of them, best first.
+  if ((totalRows[0]?.total ?? 0) === 0 && words.length > 1) ({ rows, totalRows } = await run("any"));
 
   const total = totalRows[0]?.total ?? 0;
   res.json({

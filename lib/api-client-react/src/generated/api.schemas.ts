@@ -315,6 +315,26 @@ export interface OrderPage {
   statusCounts: StatusCounts;
 }
 
+export type SearchAliasGroupAliasesItemKind = typeof SearchAliasGroupAliasesItemKind[keyof typeof SearchAliasGroupAliasesItemKind];
+
+
+export const SearchAliasGroupAliasesItemKind = {
+  ru: 'ru',
+  dialect: 'dialect',
+} as const;
+
+export type SearchAliasGroupAliasesItem = {
+  word: string;
+  kind: SearchAliasGroupAliasesItemKind;
+};
+
+export interface SearchAliasGroup {
+  uk: string;
+  /** Lower-case word beginnings (no apostrophes) that belong to this group */
+  stems: string[];
+  aliases: SearchAliasGroupAliasesItem[];
+}
+
 export interface OrderUpdate {
   status?: OrderStatus;
   adminNote?: string;

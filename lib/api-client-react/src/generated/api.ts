@@ -53,6 +53,7 @@ import type {
   ProductUpdate,
   ProductsSummary,
   SalesPoint,
+  SearchAliasGroup,
   SearchNpBranchesParams,
   SearchNpCitiesParams,
   SeoAudit,
@@ -241,6 +242,83 @@ export function useGetMe<TData = Awaited<ReturnType<typeof getMe>>, TError = Err
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetMeQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListSearchAliasesUrl = () => {
+
+
+
+
+  return `/api/search/aliases`
+}
+
+/**
+ * @summary Russian and dialect words the search understands, grouped by the Ukrainian catalog word
+ */
+export const listSearchAliases = async ( options?: Parameters<typeof customFetch>[1]): Promise<SearchAliasGroup[]> => {
+
+  return customFetch<SearchAliasGroup[]>(getListSearchAliasesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSearchAliasesQueryKey = () => {
+    return [
+    `/api/search/aliases`
+    ] as const;
+    }
+
+
+export const getListSearchAliasesQueryOptions = <TData = Awaited<ReturnType<typeof listSearchAliases>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSearchAliases>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSearchAliasesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSearchAliases>>> = ({ signal }) => listSearchAliases({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSearchAliases>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSearchAliasesQueryResult = NonNullable<Awaited<ReturnType<typeof listSearchAliases>>>
+export type ListSearchAliasesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Russian and dialect words the search understands, grouped by the Ukrainian catalog word
+ */
+
+export function useListSearchAliases<TData = Awaited<ReturnType<typeof listSearchAliases>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSearchAliases>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSearchAliasesQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

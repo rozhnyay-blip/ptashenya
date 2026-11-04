@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { initSync } from "./lib/sync";
+import { startCrmSync } from "./lib/crm";
 
 const rawPort = process.env["PORT"];
 
@@ -23,5 +24,6 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+  startCrmSync();
   initSync().catch((e: unknown) => logger.error({ err: e }, "Sync init failed"));
 });

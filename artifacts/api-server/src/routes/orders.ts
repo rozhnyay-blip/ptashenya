@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { sendOrderToCrm } from "../lib/crm";
 import {
   db,
   productsTable,
@@ -148,6 +149,7 @@ router.post("/orders", async (req, res) => {
   });
 
   req.log.info({ orderId: result.order.id, total }, "Order created");
+  sendOrderToCrm(result.order, result.items);
   res.status(201).json(toOrderDetail(result.order, result.items, false));
 });
 

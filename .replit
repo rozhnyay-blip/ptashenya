@@ -18,3 +18,8 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[userenv]
+
+[userenv.production]
+MOIE_URL = "https://paniel-povidomlien-dlia-saitiv.replit.app"

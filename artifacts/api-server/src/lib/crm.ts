@@ -16,8 +16,10 @@ const PAYMENT: Record<string, string> = { cod: "Накладений платі�
 
 function config() {
   const base = process.env.MOIE_URL;
-  const token = process.env.MOIE_WEBHOOK_TOKEN;
-  if (!base || !token) return null;
+  const raw = process.env.MOIE_WEBHOOK_TOKEN?.trim();
+  if (!base || !raw) return null;
+  // Tolerate the whole code example from the panel being pasted: take the value after "Bearer".
+  const token = raw.match(/Bearer\s+([^\s"'`]+)/)?.[1] ?? raw;
   const url = new URL(base);
   if (url.protocol !== "https:") throw new Error("MOIE_URL must be https");
   const root = url.origin + url.pathname.replace(/\/+$/, "");
@@ -60,6 +62,14 @@ export function orderMessage(order: OrderRow, items: OrderItemRow[]) {
 }
 
 /** Fire-and-forget: sends the new order to the panel, retrying a few times if it is unreachable. */
+export function crmConfigured() {
+  try {
+    return config();
+  } catch {
+    return null;
+  }
+}
+
 export function sendOrderToCrm(order: OrderRow, items: OrderItemRow[]) {
   let cfg: ReturnType<typeof config>;
   try {

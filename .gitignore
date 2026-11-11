@@ -33,6 +33,15 @@ node_modules
 !.vscode/launch.json
 !.vscode/extensions.json
 
+# Local credentials and database exports must never go to GitHub.
+.env
+.env.*
+!.env.example
+/private-data/
+/database-exports/
+*.dump
+*.backup
+
 # misc
 /.sass-cache
 /connect.lock

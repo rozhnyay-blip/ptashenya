@@ -1,0 +1,24 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Магазин: запустити локально",
+      "type": "shell",
+      "command": "pnpm run local:dev",
+      "problemMatcher": [],
+      "isBackground": true
+    },
+    {
+      "label": "Магазин: перевірити типи",
+      "type": "shell",
+      "command": "pnpm run typecheck",
+      "problemMatcher": []
+    },
+    {
+      "label": "Магазин: створити таблиці БД",
+      "type": "shell",
+      "command": "pnpm run local:db:init",
+      "problemMatcher": []
+    }
+  ]
+}

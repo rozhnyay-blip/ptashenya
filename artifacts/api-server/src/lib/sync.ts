@@ -536,6 +536,10 @@ async function schedulerTick() {
 }
 
 export async function initSync() {
+  if (process.env.DISABLE_SUPPLIER_SYNC === "true") {
+    logger.info({}, "Supplier sync is disabled for local development");
+    return;
+  }
   // Runs interrupted by a restart can never finish.
   await db
     .update(syncRunsTable)

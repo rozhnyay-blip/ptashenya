@@ -2,3 +2,4 @@
 - [Running server code ad-hoc](dev-scripts.md) — tsx loader path and how to test admin routes without Clerk
 - [Nova Poshta delivery](nova-poshta.md) — checkout is NP-only; keyless directory + tracking API, FindByString is single-word
 - [Multilingual search](multilingual-search.md) — RU/Transcarpathian words via one synonym list; owner chose this over a Russian site version
+- [Hosting target](hosting-intent.md) — owner explicitly wants Windows PC hosting 24/7, not just local development.

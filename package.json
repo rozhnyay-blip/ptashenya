@@ -5,11 +5,16 @@
   "packageManager": "pnpm@10.26.1",
   "scripts": {
     "preinstall": "node scripts/preinstall.mjs",
-    "build": "pnpm run typecheck && pnpm -r --if-present run build",
+    "build": "node scripts/build-production.mjs",
+    "start": "node scripts/start-production.mjs",
+    "test:production": "node scripts/test-production.mjs",
     "local:dev": "node --env-file=.env scripts/local-dev.mjs",
     "local:db:init": "node --env-file=.env scripts/run-pnpm.mjs --filter @workspace/db run push",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+  },
+  "engines": {
+    "node": ">=24 <25"
   },
   "private": true,
   "dependencies": {

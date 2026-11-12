@@ -32,10 +32,14 @@ import PricesPage from "@/pages/admin/prices";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false, retry: 1 } } });
 
-const clerkPubKey = publishableKeyFromHost(
-  window.location.hostname,
-  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
-);
+// Replit-managed builds resolve custom-domain keys by host. A standalone build
+// must use the owner's actual Clerk key, including for localhost/live instances.
+const clerkPubKey = import.meta.env.VITE_STANDALONE === "true"
+  ? import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+  : publishableKeyFromHost(
+      window.location.hostname,
+      import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
+    );
 
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
 
